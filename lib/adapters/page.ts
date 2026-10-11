@@ -63,15 +63,29 @@ export function extractConversationFromPage(): PageExtraction {
     return null;
   }
 
-  document
-    .querySelectorAll("[data-message-author-role], [data-role], [data-author]")
-    .forEach((element) => {
-      const role = roleFromAttribute(element);
+  // ChatGPT's current conversation view no longer uses data-message-author-role.
+  // Its search units identify both the rendered message and its role.
+  if (provider === "chatgpt") {
+    document.querySelectorAll("[data-chatgpt-search-unit-key]").forEach((element) => {
+      const role = element.getAttribute("data-chatgpt-search-unit-key")?.match(/:(user|assistant|system)$/)?.[1] as Role | undefined;
       if (role && !seen.has(element)) {
         seen.add(element);
         candidates.push({ element, role });
       }
     });
+  }
+
+  if (candidates.length === 0) {
+    document
+      .querySelectorAll("[data-message-author-role], [data-role], [data-author]")
+      .forEach((element) => {
+        const role = roleFromAttribute(element);
+        if (role && !seen.has(element)) {
+          seen.add(element);
+          candidates.push({ element, role });
+        }
+      });
+  }
 
   if (provider === "claude") {
     add('[data-testid="user-message"]', "user");
@@ -107,10 +121,13 @@ export function extractConversationFromPage(): PageExtraction {
     // Claude responses can contain several separately rendered Markdown blocks.
     // Select the message body, rather than just its first .prose descendant.
     const claudeBodySelector = '[data-testid="user-message"], .font-claude-response, .font-claude-message';
+    const chatgptBodySelector = '[data-user-message-bubble], [data-markdown-text-style="assistant-message"]';
     const content = provider === "claude"
       ? element.matches(claudeBodySelector)
         ? element
         : element.querySelector(claudeBodySelector) ?? element
+      : provider === "chatgpt" && element.querySelectorAll(chatgptBodySelector).length === 1
+        ? element.querySelector(chatgptBodySelector)!
       : element.querySelectorAll(".markdown, .prose, .message-content, .whitespace-pre-wrap").length === 1
         ? element.querySelector(".markdown, .prose, .message-content, .whitespace-pre-wrap")!
         : element;
@@ -146,7 +163,9 @@ export function extractConversationFromPage(): PageExtraction {
 
   const messages = filtered
     .map((candidate, index) => ({
-      id: candidate.element.getAttribute("data-message-id")
+      id: provider === "chatgpt" && candidate.element.getAttribute("data-chatgpt-search-message-ids")?.trim().split(/\s+/)[0]
+        ? `dom:${candidate.role}:${candidate.element.getAttribute("data-chatgpt-search-message-ids")!.trim().split(/\s+/)[0]}`
+        : candidate.element.getAttribute("data-message-id")
         ? `dom:${candidate.role}:${candidate.element.getAttribute("data-message-id")}`
         : candidate.element.closest('[data-message-id]')?.getAttribute('data-message-id')
           ? `dom:${candidate.role}:${candidate.element.closest('[data-message-id]')!.getAttribute('data-message-id')}`

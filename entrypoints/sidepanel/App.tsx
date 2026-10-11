@@ -269,6 +269,7 @@ export default function App() {
           </button>
         </>}
         {capturing && <button className="secondary stop-button" onClick={() => captureController.current?.abort()}>Stop and use collected messages</button>}
+        {notice && !passport && <div className={`notice ${noticeKind}`} role="status">{notice}</div>}
         {passport && <>
           <div className="conversation-summary">
             <strong>{passport.title}</strong>
@@ -321,7 +322,7 @@ export default function App() {
         const file = event.target.files?.[0];
         if (file) void importFile(file);
       }} />
-      {notice && <div className={`notice ${noticeKind}`} role="status">{notice}</div>}
+      {notice && passport && <div className={`notice ${noticeKind}`} role="status">{notice}</div>}
 
       <footer>
         Local only · No account · No tracking

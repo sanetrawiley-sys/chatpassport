@@ -43,6 +43,41 @@ describe("page adapters", () => {
     expect(result.messages[1]?.content[0]?.text).toContain("```\npnpm test\n```");
   });
 
+  it("extracts current ChatGPT search units without controls or duplicate nested content", () => {
+    const result = extract(`
+      <div data-chatgpt-conversation-selection-target="true">
+        <div data-chatgpt-search-unit-key="fallback-turn-0:0:user" data-chatgpt-search-message-ids="user-1">
+          <div data-content-search-unit-key="fallback-turn-0:0:user">
+            <div data-user-message-bubble="true"><p>Plan a launch</p></div>
+          </div><button>Copy message</button>
+        </div>
+        <div data-chatgpt-search-unit-key="fallback-turn-0:2:assistant" data-chatgpt-search-message-ids="assistant-1 assistant-1">
+          <h4 class="sr-only" data-conversation-role="assistant">ChatGPT said:</h4>
+          <div data-chatgpt-selection-message-id="assistant-1">
+            <div data-markdown-text-style="assistant-message"><p>Start with research.</p><pre>pnpm test</pre></div>
+          </div><button>Copy</button>
+        </div>
+        <div data-chatgpt-search-unit-key="fallback-turn-1:0:user" data-chatgpt-search-message-ids="user-2">
+          <div data-user-message-bubble="true">What next?</div><button>Edit message</button>
+        </div>
+        <div data-chatgpt-search-unit-key="fallback-turn-1:2:assistant" data-chatgpt-search-message-ids="assistant-2">
+          <div data-markdown-text-style="assistant-message">Ship the fix.</div><button>Retry</button>
+        </div>
+      </div>
+    `, "https://chatgpt.com/c/test", "Launch plan - ChatGPT");
+
+    expect(result.messages.map(({ id, role }) => ({ id, role }))).toEqual([
+      { id: "dom:user:user-1", role: "user" },
+      { id: "dom:assistant:assistant-1", role: "assistant" },
+      { id: "dom:user:user-2", role: "user" },
+      { id: "dom:assistant:assistant-2", role: "assistant" },
+    ]);
+    expect(result.messages[0]?.content[0]?.text).toBe("Plan a launch");
+    expect(result.messages[1]?.content[0]?.text).toBe("Start with research.\n\n```\npnpm test\n```");
+    expect(result.messages[2]?.content[0]?.text).toBe("What next?");
+    expect(result.messages[3]?.content[0]?.text).toBe("Ship the fix.");
+  });
+
   it("extracts Claude semantic message markers", () => {
     const result = extract(`
       <div data-testid="user-message"><p>Review this</p></div>

@@ -40,11 +40,11 @@ export function mergeHistory(existing: PassportMessage[], incoming: PassportMess
 
 /** Isolated-world state holds only the scroll element/position, never credentials. */
 export function scrollHistoryOnPage(action: 'start' | 'up' | 'down' | 'restore', token: string, expectedUrl: string) {
-  type Session = { token: string; element: HTMLElement; original: number; height: number; lastDirection: 'up' | 'down'; url: string; expiresAt: number; timer?: ReturnType<typeof setTimeout> };
+  type Session = { token: string; element: HTMLElement; original: number; height: number; reverse: boolean; lastDirection: 'up' | 'down'; url: string; expiresAt: number; timer?: ReturnType<typeof setTimeout> };
   const state = globalThis as typeof globalThis & { __chatpassportScroll?: Session };
   function release(session: Session) {
     if (location.href === session.url && session.element.isConnected) {
-      const growth = session.lastDirection === 'up' ? Math.max(0, session.element.scrollHeight - session.height) : 0;
+      const growth = !session.reverse && session.lastDirection === 'up' ? Math.max(0, session.element.scrollHeight - session.height) : 0;
       session.element.scrollTop = session.original + growth;
     }
     clearTimeout(session.timer);
@@ -57,13 +57,14 @@ export function scrollHistoryOnPage(action: 'start' | 'up' | 'down' | 'restore',
     // Keep these markers aligned with extractConversationFromPage. Missing a
     // supported marker makes us scroll the document instead of its inner list.
     const anchors = Array.from(document.querySelectorAll(
-      '[data-message-author-role], [data-role], [data-author], '
+      '[data-message-author-role], [data-role], [data-author], [data-chatgpt-search-unit-key], '
       + '[data-testid="user-message"], [data-testid="assistant-message"], '
       + '.font-claude-response, .font-claude-message, '
       + 'user-query, model-response, [data-test-id="user-query"], [data-test-id="model-response"], '
       + '[class*="user-message"], [class*="assistant-message"], '
       + '[class*="message_user"], [class*="message_assistant"]',
     ));
+    if (!anchors.length) throw new Error('No messages were found. Open a conversation and try again.');
     const scores = new Map<HTMLElement, number>();
     for (const anchor of anchors) {
       for (let node = anchor.parentElement; node; node = node.parentElement) {
@@ -73,10 +74,12 @@ export function scrollHistoryOnPage(action: 'start' | 'up' | 'down' | 'restore',
         }
       }
     }
-    const element = [...scores].sort((a, b) => b[1] - a[1])[0]?.[0]
+    const chatgptScroll = document.querySelector<HTMLElement>('[data-app-action-timeline-scroll]');
+    const element = chatgptScroll && anchors.some((anchor) => chatgptScroll.contains(anchor)) ? chatgptScroll
+      : [...scores].sort((a, b) => b[1] - a[1])[0]?.[0]
       ?? document.scrollingElement as HTMLElement;
     if (!element) throw new Error('Could not locate the conversation scroll area.');
-    const session: Session = { token, element, original: element.scrollTop, height: element.scrollHeight, lastDirection: 'up', url: expectedUrl, expiresAt: Date.now() + 125_000 };
+    const session: Session = { token, element, original: element.scrollTop, height: element.scrollHeight, reverse: getComputedStyle(element).flexDirection === 'column-reverse', lastDirection: 'up', url: expectedUrl, expiresAt: Date.now() + 125_000 };
     state.__chatpassportScroll = session;
     // The panel may be destroyed before its finally block runs. Recover the page
     // independently so an abandoned capture cannot leave a permanent lock.
@@ -86,21 +89,24 @@ export function scrollHistoryOnPage(action: 'start' | 'up' | 'down' | 'restore',
   if (!session || session.token !== token) throw new Error('History capture session ended.');
   // Older pages prepend content. Account for that growth when restoring the
   // user's original reading position, rather than jumping to an older message.
-  if (session.lastDirection === 'up') session.original += Math.max(0, session.element.scrollHeight - session.height);
+  if (!session.reverse && session.lastDirection === 'up') session.original += Math.max(0, session.element.scrollHeight - session.height);
   session.height = session.element.scrollHeight;
   if (action === 'restore') {
     release(session);
-    return { top: 0, height: 0, viewport: 0, boundary: true };
+    return { top: 0, height: 0, viewport: 0, boundary: true, virtualized: false };
   }
   if (location.href !== session.url || !session.element.isConnected) throw new Error('The conversation changed during capture.');
   const element = session.element;
   if (action === 'up' || action === 'down') session.lastDirection = action;
   const step = Math.max(1, element.clientHeight * 0.55);
-  if (action === 'up') element.scrollTop = Math.max(0, element.scrollTop - step);
-  if (action === 'down') element.scrollTop = Math.min(element.scrollHeight - element.clientHeight, element.scrollTop + step);
+  if (action === 'up') element.scrollTop = Math.max(session.reverse ? Math.min(0, element.clientHeight - element.scrollHeight) : 0, element.scrollTop - step);
+  if (action === 'down') element.scrollTop = Math.min(session.reverse ? 0 : element.scrollHeight - element.clientHeight, element.scrollTop + step);
   element.dispatchEvent(new Event('scroll', { bubbles: true }));
   return {
     top: element.scrollTop, height: element.scrollHeight, viewport: element.clientHeight,
-    boundary: action === 'down' ? element.scrollTop + element.clientHeight >= element.scrollHeight - 2 : element.scrollTop <= 2,
+    virtualized: !!document.querySelector('[data-turn-key], [data-virtualized-turn-content]'),
+    boundary: session.reverse
+      ? action === 'down' ? element.scrollTop >= -2 : element.scrollTop <= element.clientHeight - element.scrollHeight + 2
+      : action === 'down' ? element.scrollTop + element.clientHeight >= element.scrollHeight - 2 : element.scrollTop <= 2,
   };
 }

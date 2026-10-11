@@ -10,14 +10,15 @@
 4. 目标页明确显示等待、准备、审核发送和失败状态。编辑器拒绝草稿时提供原问题展示及复制恢复。仍不自动发送，等待确认期间过期、取消或编辑变化不会造成旧草稿覆盖。
 5. 更新扩展名称、简介、README、隐私文案、商店文案和三张 1280×800 PNG。截图使用实际组件与演示数据，目标网站编辑器为演示环境。
 6. Quick 导出的 JSON 使用 capture.method = loaded。新版可导入旧 JSON；旧版扩展需要升级后才能导入 loaded 文件。
+7. 修复 ChatGPT 新版页面消息节点无法识别的问题；支持反向滚动的历史容器。无消息时立即报错，页面未提供可滚动历史时标记为部分抓取，抓取提示移到操作按钮附近。
 
 本次没有新增权限，没有引入服务端或遥测。尚未实现 AI 摘要或关键消息固定保留。
 
 ## 验证
 
-- `pnpm check`：类型检查、107 项自动测试和生产构建通过。
+- `pnpm check`：类型检查、113 项自动测试和生产构建通过。
 - 新增测试覆盖快速抓取无滚动/无定时等待、导航与取消、上下文容量提示、超长确认/返回/关闭、确认期间过期和失败后的原问题恢复。
-- 本地浏览器已验证实际侧栏组件的 Quick 准备流程、选定目标和实际目标卡片/编辑器写入校验。
+- 本地 Chrome 的真实 ChatGPT 会话中，Quick 已能读取消息；历史模式已能结束并显示结果。ChatGPT 可能仅渲染部分历史，仍需在不同长度的真实会话中核对完整性。
 - 三张 PNG 已逐张检查，尺寸一致且内容不同。预览仅使用演示数据与模拟浏览器 API，不代表四个平台登录后的真实网站兼容性已经验证。
 - 仍需使用最终 ZIP 在已登录的 ChatGPT、Claude、Gemini、DeepSeek 上完成真实抓取和迁移验证，尤其是富文本编辑器和长对话。
 
@@ -39,6 +40,7 @@ ChatPassport 0.1.6
 - Simplify destination selection and place import/export/range controls in More options.
 - Estimate draft capacity and require approval before omitting older messages at insertion.
 - Improve draft status and original-question recovery after editor failures.
+- Recognize current ChatGPT message markup and reverse scrolling; report partial capture when history cannot be scrolled.
 - Update listing materials and privacy wording. No additional permissions or telemetry.
 - The user still reviews and sends the message manually.
 ```

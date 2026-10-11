@@ -102,6 +102,11 @@ export async function extractActiveConversation(options: {
   const startPosition = await scroll('start');
   try {
     await collect('up', startPosition);
+    if (!messages.length) throw new Error('No messages were found. Open a conversation and try again.');
+    if (startPosition.virtualized && startPosition.height <= startPosition.viewport + 2) {
+      ended = true;
+      reason = 'This page shows virtualized messages but has no scrollable history. Only currently rendered messages were read; older messages may be missing.';
+    }
     for (const direction of ['up', 'down'] as const) {
       let boundarySince: number | undefined;
       let previous = "";

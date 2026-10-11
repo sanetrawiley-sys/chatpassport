@@ -43,15 +43,15 @@ describe('history window alignment', () => {
   });
 });
 
-function virtualPage(lazy = false, repeated = false, recycled = false, staticDom = false) {
-  const dom = new JSDOM('<main style="overflow-y:auto"></main>', { url: 'https://chatgpt.com/c/test', runScripts: 'outside-only' });
+function virtualPage(lazy = false, repeated = false, recycled = false, staticDom = false, modernChatgpt = false, reverse = false) {
+  const dom = new JSDOM(`<main ${modernChatgpt ? 'data-app-action-timeline-scroll' : ''} style="overflow-y:auto${reverse ? ';display:flex;flex-direction:column-reverse' : ''}"></main>`, { url: 'https://chatgpt.com/c/test', runScripts: 'outside-only' });
   const area = dom.window.document.querySelector('main')!;
-  let top = lazy ? 300 : 1800;
+  let top = reverse ? 0 : lazy ? 300 : 1800;
   let loadedStart = lazy ? 30 : 0;
   const height = () => (40 - loadedStart) * 50;
   const render = () => {
     if (staticDom && area.children.length) return;
-    const start = Math.max(loadedStart, loadedStart + Math.floor(top / 50) - 1);
+    const start = reverse ? Math.max(0, 33 - Math.floor(-top / 50)) : Math.max(loadedStart, loadedStart + Math.floor(top / 50) - 1);
     const end = Math.min(40, start + 7);
     if (repeated) {
       const first = staticDom ? 0 : Math.min(36, Math.floor(top / 100) * 2);
@@ -65,15 +65,22 @@ function virtualPage(lazy = false, repeated = false, recycled = false, staticDom
     }
     area.innerHTML = Array.from({ length: end - start }, (_, i) => {
       const index = start + i;
+      if (modernChatgpt) {
+        const role = index % 2 ? 'assistant' : 'user';
+        const body = role === 'user'
+          ? `<div data-user-message-bubble="true">Message ${index}</div>`
+          : `<div data-markdown-text-style="assistant-message"><p>Message ${index}</p></div>`;
+        return `<div data-chatgpt-search-unit-key="fallback-turn-${Math.floor(index / 2)}:${index % 2 ? 2 : 0}:${role}" data-chatgpt-search-message-ids="m${index}">${body}<button>Copy</button></div>`;
+      }
       return `<article data-message-id="m${index}" data-message-author-role="${index % 2 ? 'assistant' : 'user'}"><p>${index % 4 === 0 ? 'Repeated question' : `Message ${index}`}</p></article>`;
     }).join('');
   };
   Object.defineProperties(area, {
-    clientHeight: { get: () => 200 }, scrollHeight: { get: height },
+    clientHeight: { get: () => 200 }, scrollHeight: { get: height, configurable: true },
     scrollTop: {
       get: () => top,
       set: (value: number) => {
-        top = Math.max(0, Math.min(height() - 200, value));
+        top = reverse ? Math.max(200 - height(), Math.min(0, value)) : Math.max(0, Math.min(height() - 200, value));
         if (lazy && top === 0 && loadedStart > 0) {
           loadedStart -= 10;
           top += 500; // preserve visible anchor when older pages are prepended
@@ -211,6 +218,48 @@ describe('history capture integration', () => {
     expect(passport.capture?.status).toBe('page-history');
     expect(area.scrollTop).toBe(lazy ? original + 1500 : original);
   });
+  it('collects modern ChatGPT virtualized messages and restores the real scroll area', async () => {
+    vi.useFakeTimers();
+    const { dom, area, original } = virtualPage(false, false, false, false, true);
+    const capture = extractActiveConversation();
+    await vi.advanceTimersByTimeAsync(119_000);
+    const result = await capture;
+    expect(result.messages.map((item) => item.content[0]?.text))
+      .toEqual(Array.from({ length: 40 }, (_, index) => `Message ${index}`));
+    expect(result.capture?.status).toBe('page-history');
+    expect(area.scrollTop).toBe(original);
+    dom.window.close();
+  });
+  it('loads older messages from a column-reverse ChatGPT scroller and restores the latest position', async () => {
+    vi.useFakeTimers();
+    const { dom, area, original } = virtualPage(false, false, false, false, true, true);
+    const capture = extractActiveConversation();
+    await vi.advanceTimersByTimeAsync(119_000);
+    const result = await capture;
+    expect(result.messages.map((item) => item.content[0]?.text))
+      .toEqual(Array.from({ length: 40 }, (_, index) => `Message ${index}`));
+    expect(result.capture?.status).toBe('page-history');
+    expect(area.scrollTop).toBe(original);
+    dom.window.close();
+  });
+  it('marks a non-scrollable virtualized ChatGPT page as partial immediately', async () => {
+    const { dom, area } = virtualPage(false, false, false, false, true, true);
+    Object.defineProperty(area, 'scrollHeight', { get: () => 200 });
+    area.insertAdjacentHTML('beforeend', '<span data-turn-key="virtual-turn" hidden></span>');
+    const result = await extractActiveConversation();
+    expect(result.capture?.status).toBe('partial');
+    expect(result.capture?.reason).toContain('no scrollable history');
+    expect(mocks.executeScript.mock.calls.filter(([call]) => call.args?.[0] === 'up')).toHaveLength(0);
+    dom.window.close();
+  });
+  it('fails promptly when a page has no recognizable messages', async () => {
+    const { dom } = virtualPage();
+    dom.window.document.querySelector('main')!.replaceChildren();
+    await expect(extractActiveConversation()).rejects.toThrow('No messages were found');
+    expect(mocks.executeScript.mock.calls.filter(([call]) => call.args?.[0] === 'up')).toHaveLength(0);
+    expect(mocks.executeScript.mock.calls.some(([call]) => call.args?.[0] === 'restore')).toBe(false);
+    dom.window.close();
+  });
   it('waits for older messages that arrive after the former boundary timeout', async () => {
     vi.useFakeTimers();
     const url = 'https://chatgpt.com/c/delayed';
@@ -269,6 +318,14 @@ describe('history capture integration', () => {
 });
 
 describe('quick loaded-message capture', () => {
+  it('reads current ChatGPT search units immediately', async () => {
+    const { dom, area, original } = virtualPage(false, false, false, false, true);
+    const result = await extractActiveConversation({ mode: 'loaded' });
+    expect(result.messages.length).toBeGreaterThan(0);
+    expect(result.messages.every((item) => item.id.startsWith('dom:'))).toBe(true);
+    expect(area.scrollTop).toBe(original);
+    dom.window.close();
+  });
   it('returns the rendered virtual window without scrolling or waiting and round-trips its coverage', async () => {
     vi.useFakeTimers();
     const { dom, area, original } = virtualPage();
