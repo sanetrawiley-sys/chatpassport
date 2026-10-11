@@ -109,8 +109,17 @@ pnpm release:chrome
 
 Issues and pull requests are welcome. For a compatibility report, include the assistant, the action you took, the result you saw, and any Chrome extension errors, with personal conversation content removed. Run `pnpm check` before opening a pull request.
 
+## Star history
+
+If ChatPassport is useful, give the project a star. The chart below shows new stars per UTC day over the past 60 days.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/star-history-dark.svg" />
+  <img alt="ChatPassport daily GitHub star growth" src="assets/star-history.svg" />
+</picture>
+
 <div align="center">
 
-[Chrome Web Store](https://chromewebstore.google.com/detail/chatpassport/anmmhpfpbaafkgdhalbllhmaejeappmb) · [Privacy policy](PRIVACY.md) · [Support and issues](https://github.com/sxwangsxwang1/chatpassport/issues) · [Star ChatPassport](https://github.com/sxwangsxwang1/chatpassport)
+[⭐ Star ChatPassport](https://github.com/sxwangsxwang1/chatpassport) · [View stargazers](https://github.com/sxwangsxwang1/chatpassport/stargazers)
 
 </div>
