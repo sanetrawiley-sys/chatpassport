@@ -2,9 +2,9 @@
 
 # ChatPassport
 
-### Carry the context. Keep control.
+### Switch assistants. Keep your context.
 
-Continue AI conversations across ChatGPT, Claude, Gemini, and DeepSeek — locally, without API keys or a ChatPassport account.
+Hit a chat limit? Continue your conversation in another assistant without copying messages one by one. Move text and code across ChatGPT, Claude, Gemini, and DeepSeek with local processing, no API keys, and no ChatPassport account.
 
 [![Install ChatPassport from the Chrome Web Store](https://img.shields.io/badge/Install-Chrome%20Web%20Store-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/chatpassport/anmmhpfpbaafkgdhalbllhmaejeappmb)
 
@@ -37,6 +37,8 @@ The destination receives one useful continuation request. ChatPassport never cli
 ## Features
 
 - Continue conversations across ChatGPT, Claude, Gemini, and DeepSeek.
+- Choose quick capture of currently loaded messages or scroll to load history.
+- Preview the transfer size and confirm omitted messages before draft insertion.
 - Choose the latest 20, 50, 100, or all captured messages.
 - Keep transfer data in the current browser session.
 - Wait for a new question before inserting migrated context.
@@ -89,46 +91,32 @@ Do not select the repository root. When building from source, the correct folder
 
 Open the conversation you want to continue on ChatGPT, Claude, Gemini, or DeepSeek. Refresh the page once if the extension was installed while the page was already open.
 
-### 2. Preview the conversation
+### 2. Choose a destination and capture mode
 
-Click the ChatPassport toolbar icon to open the side panel, then select **Capture conversation history**.
+Select the assistant you want to continue in, then choose **Messages to read**:
 
-ChatPassport displays the conversation title, source, message count, and approximate size. Nothing is stored for transfer until you prepare one.
+- **Load history** (default): scroll to collect older rendered messages and restore your position. It waits for stable page boundaries and can take up to two minutes. Keep the conversation unchanged. **Stop and use collected messages** ends the scan with a partial result.
+- **Quick**: read only messages already rendered by the page, without scrolling or waiting for history. Older or virtualized messages may be absent. Quick results are explicitly marked partial.
 
-ChatPassport automatically scrolls backward and forward through the conversation, loading older messages and merging overlapping rendered windows, including virtualized lists. It restores your reading position afterward. You can stop and keep collected messages; capture also stops after two minutes or at its safety size limit. The preview and JSON record whether page boundaries were reached or capture is partial. If repeated virtual windows cannot be matched reliably without stable message IDs, they are retained and explicitly flagged as potentially duplicated or incomplete. This is not proof of complete server history: hidden branches, collapsed content, slow or unsupported loaders may still be absent. Do not navigate or edit the conversation during capture.
+Click **Prepare for [destination]**. No conversation is sent to the destination yet.
 
-### 3. Choose the amount of context
+### 3. Check the captured context
 
-Choose one of the available ranges:
+The panel shows the source, captured message count, capture coverage and selected range. It estimates how many complete recent messages fit in the 48,000-character draft budget, allowing for a next question of up to 8,000 characters. These are character counts, not token counts or a guarantee of the destination's model limits.
 
-- All detected messages (or all imported messages for a file)
-- Latest 100 available messages
-- Latest 50 available messages
-- Latest 20 available messages
+Open **More options** to select the latest 20, 50, 100 or all captured messages, export JSON/Markdown, or import a saved JSON file. Export always saves the full captured preview, independent of the selected transfer range.
 
-For long conversations, a recent-message range usually gives the destination assistant more room to answer the new request.
+### 4. Continue in the destination
 
-### 4. Choose a destination
+Click **Continue in [destination]**. The extension stores one temporary transfer in session storage and opens its bound destination tab. Type your next question in the destination's normal editor, then click **Add context to draft** on the ChatPassport card.
 
-Select ChatGPT, Claude, Gemini, or DeepSeek, then click **Import into [destination]**. ChatPassport stores one temporary transfer in Chrome session storage and binds it to the newly opened destination tab. Other tabs on the same platform cannot claim it.
+If older messages must be omitted to fit the actual question, the card shows the exact included/omitted counts first. Click **Confirm and add context**, or **Go back** to reconsider. The editor remains untouched until you confirm. Editing the question during preparation or confirmation requires trying again.
 
-### 5. Type the next question
+### 5. Review and send
 
-On the destination page, a **ChatPassport context is ready** card appears. Type the question you want the destination assistant to answer in its normal message box.
+ChatPassport verifies the inserted draft and shows **Draft added · review and send**. Review it, then click the destination website's Send button. ChatPassport never sends automatically.
 
-ChatPassport leaves the editor untouched until you explicitly continue.
-
-### 6. Continue with context
-
-Click **Continue with context** on the ChatPassport card. The extension combines:
-
-```text
-selected conversation context
-+
-your new question
-```
-
-ChatPassport reads the editor back to confirm the continuation was inserted completely. Review the result, then click the destination platform's own Send button.
+On an editor write failure, the original question is displayed and **Copy original question** is available for recovery. **Copy saved context** in the side panel is a manual fallback for pending context within the copy size budget. A changed draft is never automatically overwritten to roll back a failed insertion.
 
 ## Conversation size protection
 

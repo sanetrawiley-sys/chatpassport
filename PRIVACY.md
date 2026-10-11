@@ -6,7 +6,7 @@ ChatPassport helps users carry the rendered text of an AI conversation between s
 
 ## Data ChatPassport handles
 
-When the user explicitly selects **Capture conversation history**, ChatPassport scrolls the selected conversation to load older messages and reads the rendered conversation text and basic conversation metadata, such as message roles, the source platform, page title, and page URL, from the active supported tab.
+When the user explicitly selects **Prepare for [destination]**, ChatPassport reads rendered conversation text and basic metadata (message roles, source platform, page title and page URL) from the active supported tab. **Quick** reads only currently loaded messages without scrolling; **Load history** scrolls to collect older rendered messages.
 
 When the user prepares a transfer, ChatPassport temporarily handles the captured conversation and the new question typed by the user. Imported `.chatpassport.json` files are also read locally at the user's request.
 
@@ -33,7 +33,7 @@ Exported JSON or Markdown files are saved only through the browser's normal down
 
 ChatPassport has no developer-operated backend. The extension does not send conversation data, drafts, imported files, browsing history, or usage analytics to the developer or to advertising, analytics, or data-broker services.
 
-Once you click Continue with context and the draft is inserted, the destination website and its scripts can read it and may sync or transmit it before you click Send. ChatPassport never clicks Send automatically. Scrolling history can also cause the source website to load older messages through its normal network requests. Each website handles data under its own terms and privacy policy.
+Once you click Add context to draft (and confirm any omissions) and the draft is inserted, the destination website and its scripts can read it and may sync or transmit it before you click Send. ChatPassport never clicks Send automatically. Scrolling history can also cause the source website to load older messages through its normal network requests. Each website handles data under its own terms and privacy policy.
 
 ChatPassport does not sell user data, use it for advertising or credit decisions, or allow the developer or other humans to read it.
 

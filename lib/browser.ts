@@ -16,11 +16,29 @@ export async function getActiveTabContext(): Promise<ActiveTabContext> {
 }
 
 export async function extractActiveConversation(options: {
+  mode?: 'history' | 'loaded';
   signal?: AbortSignal;
   onProgress?: (count: number, phase: string) => void;
 } = {}): Promise<Passport> {
   const tab = await getActiveTabContext();
   if (!tab.provider) throw new Error("Open ChatGPT, Claude, Gemini, or DeepSeek first.");
+  if (options.mode === 'loaded') {
+    if (options.signal?.aborted) throw new Error('Capture cancelled. Try again when ready.');
+    const [injection] = await browser.scripting.executeScript({
+      target: { tabId: tab.id }, func: extractConversationFromPage,
+    });
+    const result = injection?.result;
+    if (!result || result.provider !== tab.provider || result.url !== tab.url) throw new Error('The conversation changed during capture. Start again.');
+    if (options.signal?.aborted) throw new Error('Capture cancelled. Try again when ready.');
+    if (!result.messages.length) throw new Error('No messages were found. Open a conversation and try again.');
+    options.onProgress?.(result.messages.length, 'Read currently loaded messages');
+    return passportSchema.parse(fitCapturedPassport({
+      format: 'chatpassport', version: '1.0', id: crypto.randomUUID(), title: result.title,
+      source: { provider: tab.provider, url: tab.url, exportedAt: new Date().toISOString() },
+      messages: result.messages,
+      capture: { method: 'loaded', status: 'partial', reason: 'Only currently loaded messages were read. Older or virtualized messages may be missing. Choose Load history to collect more.' },
+    }));
+  }
   const token = crypto.randomUUID();
   const scroll = async (action: 'start' | 'up' | 'down' | 'restore') => {
     const [result] = await browser.scripting.executeScript({

@@ -56,7 +56,7 @@ can be re-imported. Older oversized files must be split first.
 
 ## Security
 
-Version 1.0 also accepts optional `capture` metadata: `method: "scroll"`,
+Version 1.0 also accepts optional `capture` metadata: `method: "scroll" | "loaded"`,
 `status: "page-history" | "partial"`, and a human-readable `reason`.
 `page-history` means the collector reached stable page boundaries, not that
 server-side or hidden history was independently verified. Older files without
@@ -66,3 +66,5 @@ for transfer may contain fewer messages than the original capture.
 Imported JSON is treated as untrusted input and validated before use. Message
 content is inserted as text, not rendered as HTML. A file does not grant access
 to its source URL, platform account, cookies, or attachments.
+
+Since extension 0.1.6, `loaded` identifies quick capture and always reports partial coverage. New versions can import older scroll captures. Extension versions before 0.1.6 reject files with the new `loaded` method; upgrade to import them. Size-limited captures retain their original capture method.

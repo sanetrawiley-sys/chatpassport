@@ -267,3 +267,34 @@ describe('history capture integration', () => {
     expect((dom.window as unknown as Record<string, unknown>).__chatpassportScroll).toBeUndefined();
   });
 });
+
+describe('quick loaded-message capture', () => {
+  it('returns the rendered virtual window without scrolling or waiting and round-trips its coverage', async () => {
+    vi.useFakeTimers();
+    const { dom, area, original } = virtualPage();
+    const startedAt = Date.now();
+    const result = await extractActiveConversation({ mode: 'loaded' });
+    expect(Date.now()).toBe(startedAt);
+    expect(area.scrollTop).toBe(original);
+    expect(result.messages.length).toBeGreaterThan(0);
+    expect(result.messages.length).toBeLessThan(40);
+    expect(result.capture).toMatchObject({ method: 'loaded', status: 'partial' });
+    expect(mocks.executeScript).toHaveBeenCalledTimes(1);
+    expect(parsePassport(JSON.parse(serializePassport(result))).capture).toEqual(result.capture);
+    dom.window.close();
+  });
+  it('discards a quick capture if navigation happens before extraction returns', async () => {
+    mocks.query.mockResolvedValue([{ id: 7, url: 'https://chatgpt.com/c/first' }]);
+    mocks.executeScript.mockResolvedValue([{ result: {
+      provider: 'chatgpt', url: 'https://chatgpt.com/c/other', title: 'Other', messages: [message(1)],
+    } }]);
+    await expect(extractActiveConversation({ mode: 'loaded' })).rejects.toThrow('changed');
+  });
+  it('does not extract after cancellation', async () => {
+    mocks.query.mockResolvedValue([{ id: 7, url: 'https://chatgpt.com/c/test' }]);
+    const controller = new AbortController();
+    controller.abort();
+    await expect(extractActiveConversation({ mode: 'loaded', signal: controller.signal })).rejects.toThrow('cancelled');
+    expect(mocks.executeScript).not.toHaveBeenCalled();
+  });
+});

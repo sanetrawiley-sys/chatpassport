@@ -56,10 +56,10 @@ function showRelayReady(relay: ReadyRelayResponse): void {
   card.className = "card";
 
   const heading = document.createElement("strong");
-  heading.textContent = "ChatPassport context is ready";
+  heading.textContent = "Context ready · write your next question";
 
   const detail = document.createElement("p");
-  detail.textContent = `${relay.messageCount} messages from ${PROVIDER_LABELS[relay.source]} are waiting. Type your next question, then continue. Once inserted, the destination website can read or sync the draft before you click Send.`;
+  detail.textContent = `${relay.messageCount} selected messages from ${PROVIDER_LABELS[relay.source]}. Type in ${PROVIDER_LABELS[relay.target]}’s message box, then click Add context to draft. The website can read the draft once inserted; you send it yourself.`;
 
   const feedback = document.createElement("p");
   feedback.className = "feedback";
@@ -71,8 +71,12 @@ function showRelayReady(relay: ReadyRelayResponse): void {
   const continueButton = document.createElement("button");
   continueButton.type = "button";
   continueButton.className = "primary";
-  continueButton.textContent = "Continue with context";
+  continueButton.textContent = "Add context to draft";
 
+  const recoveryButton = document.createElement("button");
+  recoveryButton.type = "button";
+  recoveryButton.textContent = "Copy original question";
+  recoveryButton.hidden = true;
   const dismiss = document.createElement("button");
   dismiss.type = "button";
   dismiss.textContent = "Dismiss";
@@ -82,7 +86,7 @@ function showRelayReady(relay: ReadyRelayResponse): void {
   });
 
   continueButton.addEventListener("click", () => {
-    void prepareContinuation(relay, { card, heading, detail, feedback, continueButton, dismissButton: dismiss }, isActive);
+    void prepareContinuation(relay, { card, heading, detail, feedback, continueButton, dismissButton: dismiss, recoveryButton }, isActive);
   });
 
   const style = document.createElement("style");
@@ -104,7 +108,9 @@ function showRelayReady(relay: ReadyRelayResponse): void {
     strong { display: block; font: 700 16px/1.25 Georgia, serif; }
     p { margin: 8px 0 13px; color: #5f6862; }
     .feedback { padding: 8px 10px; border-radius: 7px; color: #8a302a; background: #f8e7e4; }
-    .actions { display: flex; gap: 8px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    [hidden] { display: none !important; }
+    .confirmation { margin-top: 12px; padding: 12px; background: #fff0cc; border-radius: 8px; }
     button {
       padding: 7px 10px;
       border: 1px solid #c9c5b8;
@@ -119,7 +125,7 @@ function showRelayReady(relay: ReadyRelayResponse): void {
     button:disabled { cursor: wait; opacity: 0.55; }
   `;
 
-  actions.append(continueButton, dismiss);
+  actions.append(continueButton, dismiss, recoveryButton);
   card.append(heading, detail, feedback, actions);
   shadow.append(style, card);
 }
@@ -131,6 +137,7 @@ interface RelayElements {
   feedback: HTMLElement;
   continueButton: HTMLButtonElement;
   dismissButton: HTMLButtonElement;
+  recoveryButton: HTMLButtonElement;
 }
 
 async function prepareContinuation(relay: ReadyRelayResponse, elements: RelayElements, isActive: () => boolean): Promise<void> {
@@ -139,6 +146,16 @@ async function prepareContinuation(relay: ReadyRelayResponse, elements: RelayEle
     showError(elements, "The message box is not ready yet. Wait for the page to finish loading and try again.");
     return;
   }
+  elements.recoveryButton.hidden = true;
+  elements.recoveryButton.onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(transaction.original);
+      elements.feedback.hidden = false;
+      elements.feedback.textContent = "Original question copied. You can paste it back into the message box.";
+    } catch {
+      showError(elements, `Clipboard unavailable. Original question: ${transaction.original}`);
+    }
+  };
   try {
     if (!transaction.original.trim()) {
       showError(elements, "Type your next question in the message box first.");
@@ -148,6 +165,8 @@ async function prepareContinuation(relay: ReadyRelayResponse, elements: RelayEle
     elements.feedback.hidden = true;
     elements.continueButton.disabled = true;
     elements.continueButton.textContent = "Preparing…";
+    elements.card.className = "card";
+    elements.heading.textContent = "Preparing your draft…";
 
     let response: unknown;
     try {
@@ -180,6 +199,14 @@ async function prepareContinuation(relay: ReadyRelayResponse, elements: RelayEle
       return;
     }
 
+    if (response.omittedMessageCount > 0) {
+      const accepted = await confirmOmissions(response, elements);
+      if (!accepted || !isActive()) {
+        resetButton(elements.continueButton);
+        return;
+      }
+    }
+
     // A transfer may have been cleared or replaced after composition was queued.
     let current: unknown;
     try {
@@ -200,6 +227,7 @@ async function prepareContinuation(relay: ReadyRelayResponse, elements: RelayEle
     await finishComposerReplacement(relay, response, transaction, elements, isActive);
   } catch {
     if (!isActive()) return;
+    elements.recoveryButton.hidden = false;
     showError(elements, `The draft could not be verified. Review the editor. Original question: ${transaction.original}`);
     resetButton(elements.continueButton);
   } finally {
@@ -224,13 +252,14 @@ async function finishComposerReplacement(
     elements.dismissButton.disabled = false;
   }
   if (!result.success) {
+    elements.recoveryButton.hidden = false;
     showError(elements, `${result.message}\nOriginal question: ${transaction.original}`);
     resetButton(elements.continueButton);
     return;
   }
 
   elements.card.className = "card success";
-  elements.heading.textContent = "Continuation is ready";
+  elements.heading.textContent = "Draft added · review and send";
   elements.detail.textContent = composed.omittedMessageCount > 0
     ? `${composed.includedMessageCount} recent messages were added; ${composed.omittedMessageCount} older messages were omitted to stay within the safe size. Review the message, then click ${PROVIDER_LABELS[relay.target]}'s Send button.`
     : `All ${composed.includedMessageCount} selected messages and your new request were added. This does not verify that the source history was complete. Review the message, then click ${PROVIDER_LABELS[relay.target]}'s Send button.`;
@@ -245,11 +274,43 @@ async function finishComposerReplacement(
 
 function showError(elements: RelayElements, message: string): void {
   elements.card.className = "card error";
+  elements.heading.textContent = "Needs your attention";
   elements.feedback.textContent = message;
   elements.feedback.hidden = false;
 }
 
 function resetButton(button: HTMLButtonElement): void {
   button.disabled = false;
-  button.textContent = "Continue with context";
+  button.textContent = "Add context to draft";
+}
+
+/** Keep the editor untouched until the user approves the exact omission count. */
+function confirmOmissions(composed: ComposedRelayResponse, elements: RelayElements): Promise<boolean> {
+  elements.heading.textContent = "Review what will be included";
+  elements.continueButton.hidden = true;
+  const box = document.createElement("div");
+  box.className = "confirmation";
+  const text = document.createElement("p");
+  text.textContent = `${composed.includedMessageCount} recent messages will be included; ${composed.omittedMessageCount} older messages will be left out. Your next question is included. Nothing has been inserted yet.`;
+  const accept = document.createElement("button");
+  accept.textContent = "Confirm and add context";
+  accept.className = "primary";
+  const cancel = document.createElement("button");
+  cancel.textContent = "Go back";
+  box.append(text, accept, cancel);
+  elements.card.append(box);
+  return new Promise((resolve) => {
+    const finish = (accepted: boolean) => {
+      elements.dismissButton.removeEventListener("click", onDismiss);
+      box.remove();
+      elements.continueButton.hidden = false;
+      elements.heading.textContent = accepted ? "Preparing your draft…" : "Context ready · write your next question";
+      resolve(accepted);
+    };
+    const onDismiss = () => finish(false);
+    elements.dismissButton.addEventListener("click", onDismiss, { once: true });
+    accept.addEventListener("click", () => finish(true), { once: true });
+    cancel.addEventListener("click", () => finish(false), { once: true });
+    accept.focus();
+  });
 }

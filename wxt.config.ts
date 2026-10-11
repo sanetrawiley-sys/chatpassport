@@ -3,8 +3,8 @@ import { defineConfig } from "wxt";
 export default defineConfig({
   modules: ["@wxt-dev/module-react"],
   manifest: {
-    name: "ChatPassport",
-    description: "Move AI conversations locally between supported assistants.",
+    name: "ChatPassport — Move Chats Across ChatGPT, Claude & Gemini",
+    description: "Continue chats across ChatGPT, Claude, Gemini, and DeepSeek. Local processing. No account or API key required.",
     permissions: ["scripting", "storage", "sidePanel", "alarms"],
     host_permissions: [
       "https://chatgpt.com/*",

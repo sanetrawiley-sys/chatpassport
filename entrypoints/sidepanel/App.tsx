@@ -25,7 +25,7 @@ import {
   type Passport,
   type Provider,
 } from "../../lib/passport";
-import { RELAY_MAX_DRAFT_CHARS } from "../../lib/relay";
+import { planContinuation, RELAY_MAX_DRAFT_CHARS, RELAY_MAX_REQUEST_CHARS } from "../../lib/relay";
 
 type MessageLimit = "all" | "20" | "50" | "100";
 
@@ -54,6 +54,7 @@ export default function App() {
   const [pending, setPending] = useState<PendingTransfer | null>(null);
   const [target, setTarget] = useState<Provider>("claude");
   const [limit, setLimit] = useState<MessageLimit>("all");
+  const [mode, setMode] = useState<"loaded" | "history">("history");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string>("");
   const [noticeKind, setNoticeKind] = useState<"info" | "success" | "error">("info");
@@ -67,6 +68,10 @@ export default function App() {
     () => transferablePassport ? passportSize(transferablePassport) : 0,
     [transferablePassport],
   );
+  const estimate = useMemo(() => transferablePassport ? {
+    short: planContinuation(transferablePassport, "?"),
+    reserved: planContinuation(transferablePassport, "?".repeat(RELAY_MAX_REQUEST_CHARS)),
+  } : null, [transferablePassport]);
   const context = useMemo(() => {
     return pending ? buildHandoffPrompt(pending.passport) : "";
   }, [pending]);
@@ -82,6 +87,7 @@ export default function App() {
       const [tab, stored] = await Promise.all([getActiveTabContext(), getPendingTransfer()]);
       if (generation !== refreshGeneration.current) return;
       setActiveProvider(tab.provider);
+
       setPending(stored);
     } catch (error) {
       if (generation === refreshGeneration.current) showNotice(errorMessage(error), "error");
@@ -112,15 +118,15 @@ export default function App() {
     setCapturing(true);
     const controller = new AbortController();
     captureController.current = controller;
-    showNotice("Loading conversation history. Please leave this conversation unchanged…");
+    showNotice(mode === "history" ? "Loading conversation history. Keep this conversation open…" : "Reading currently loaded messages…");
     try {
       const extracted = await extractActiveConversation({
+        mode,
         signal: controller.signal,
         onProgress: (count, phase) => showNotice(`${phase}… ${count} messages collected. You can stop and keep partial results.`),
       });
       setPassport(extracted);
       setPreviewOrigin("page");
-      setLimit("all");
       setTarget((current) => current !== extracted.source.provider ? current : PROVIDERS.find((provider) => provider !== extracted.source.provider)!);
       showNotice(`Captured ${extracted.messages.length} messages. ${extracted.capture?.reason}`, extracted.capture?.status === "partial" ? "info" : "success");
     } catch (error) {
@@ -142,10 +148,10 @@ export default function App() {
     setBusy(true);
     try {
       ++refreshGeneration.current;
-      const stored = await savePendingTransfer(transferablePassport, target);
+      const stored = await savePendingTransfer(transferablePassport, selectedTarget);
       ++refreshGeneration.current;
       setPending(stored);
-      showNotice(`Opening ${PROVIDER_LABELS[target]}. Type your next question there, then choose Continue with context.`, "success");
+      showNotice(`Opening ${PROVIDER_LABELS[selectedTarget]}. Type your next question there, then click Add context to draft.`, "success");
     } catch (error) {
       showNotice(errorMessage(error), "error");
     } finally {
@@ -202,6 +208,8 @@ export default function App() {
   }
 
   const sourceLabel = passport ? PROVIDER_LABELS[passport.source.provider] : null;
+  const sourceProvider = passport?.source.provider ?? activeProvider;
+  const selectedTarget = target === sourceProvider ? PROVIDERS.find((provider) => provider !== sourceProvider)! : target;
   const currentLabel = activeProvider ? PROVIDER_LABELS[activeProvider] : "Unsupported page";
 
   return (
@@ -210,7 +218,7 @@ export default function App() {
         <div className="brand-mark" aria-hidden="true">CP</div>
         <div>
           <h1>ChatPassport</h1>
-          <p>Carry the context. Keep control.</p>
+          <p>Switch assistants. Keep your context.</p>
         </div>
         <span className={`platform-dot ${activeProvider ? "online" : ""}`} title={currentLabel} />
       </header>
@@ -222,124 +230,97 @@ export default function App() {
 
       {pending && (
         <section className="card pending-card">
-          <div className="eyebrow">Pending transfer</div>
+          <div className="eyebrow">Ready in another tab</div>
           <h2>{pending.passport.title}</h2>
           <p>
             {pending.passport.messages.length} messages · {formatBytes(passportSize(pending.passport))}
             <br />Destination: {PROVIDER_LABELS[pending.target]}
-            <br />Type a new question on the destination, then choose Continue with context.
+            <br />Type a new question on the destination, then click Add context to draft.
           </p>
           <div className="button-row">
-            <button className="secondary" onClick={copyContext} disabled={busy}>Copy context only</button>
+            <button className="secondary" onClick={copyContext} disabled={busy}>Copy saved context</button>
             <button className="text-button danger" onClick={clearPending} disabled={busy}>Clear</button>
           </div>
         </section>
       )}
 
-      <section className="card capture-card">
-        <div className="step-number">1</div>
-        <div className="section-heading">
-          <div className="eyebrow">Capture</div>
-          <h2>Read this conversation</h2>
+      <section className="card transfer-card">
+        <div className="eyebrow">Keep the conversation going</div>
+        <h2>Where would you like to continue?</h2>
+        <div className="provider-grid" aria-label="Destination assistant">
+          {PROVIDERS.filter((provider) => provider !== sourceProvider).map((provider) => (
+            <button key={provider} disabled={busy} aria-pressed={selectedTarget === provider}
+              className={selectedTarget === provider ? "provider selected" : "provider"}
+              onClick={() => setTarget(provider)}>{PROVIDER_LABELS[provider]}</button>
+          ))}
         </div>
-        <p>Loads older messages by scrolling the active conversation, collects rendered history, then restores your scroll position. Keep this conversation unchanged during capture.</p>
-        <button className="primary" onClick={scanConversation} disabled={busy || !activeProvider}>
-          {busy ? "Working…" : "Capture conversation history"}
-        </button>
-        {capturing && <button className="secondary" onClick={() => captureController.current?.abort()}>Stop and keep collected messages</button>}
-      </section>
-
-      <div className="or-divider"><span>or</span></div>
-
-      <button className="import-button" onClick={() => fileInput.current?.click()} disabled={busy}>
-        <span aria-hidden="true">↑</span>
-        Import a .chatpassport.json file
-      </button>
-      <input
-        ref={fileInput}
-        type="file"
-        accept=".json,.chatpassport.json,application/json"
-        hidden
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          if (file) void importFile(file);
-        }}
-      />
-
-      {passport && (
-        <section className="card preview-card">
-          <div className="step-number">2</div>
-          <div className="section-heading">
-            <div className="eyebrow">Preview</div>
-            <h2>{passport.title}</h2>
+        {!activeProvider && !passport && <p>Open a conversation on ChatGPT, Claude, Gemini, or DeepSeek to begin. You can also import a saved file below.</p>}
+        {!passport && <>
+          <label className="field-label" htmlFor="capture-mode">Messages to read</label>
+          <select id="capture-mode" value={mode} disabled={busy} onChange={(event) => setMode(event.target.value as "loaded" | "history")}>
+            <option value="history">Load history — scroll to find older messages</option>
+            <option value="loaded">Quick — currently loaded messages only</option>
+          </select>
+          <p>{mode === "loaded"
+            ? "No scrolling or history wait. Older or virtualized messages may be missing."
+            : "Loads older messages, then restores your position. May take up to two minutes; keep this conversation unchanged."}</p>
+          <button className="primary" onClick={scanConversation} disabled={busy || !activeProvider}>
+            {capturing ? "Reading messages…" : `Prepare for ${PROVIDER_LABELS[selectedTarget]}`}
+          </button>
+        </>}
+        {capturing && <button className="secondary stop-button" onClick={() => captureController.current?.abort()}>Stop and use collected messages</button>}
+        {passport && <>
+          <div className="conversation-summary">
+            <strong>{passport.title}</strong>
+            <p>{sourceLabel} · {passport.messages.length} messages read · {formatBytes(previewSize)}</p>
           </div>
-          <dl className="stats">
-            <div><dt>Source</dt><dd>{sourceLabel}</dd></div>
-            <div><dt>{previewOrigin === "page" ? "Detected" : "Imported"}</dt><dd>{passport.messages.length}</dd></div>
-            <div><dt>Size</dt><dd>{formatBytes(previewSize)}</dd></div>
-          </dl>
-          <p className="warning">
+          <p className={passport.capture?.status === "page-history" ? "coverage" : "warning"}>
             {previewOrigin === "page"
               ? passport.capture?.reason ?? "History completeness has not been verified."
-              : "Only messages in this file are included. The original capture may not contain the complete conversation."}
+              : "Only messages in the imported file are included; source history may be incomplete."}
           </p>
-          {previewSize > SESSION_WARN_BYTES && (
-            <p className="warning">
-              This is a large conversation. Use a recent-message limit or save it as a file.
-            </p>
-          )}
-          <div className="export-row">
-            <button
-              className="secondary"
-              onClick={() => triggerDownload(serializePassport(passport), safeFilename(passport.title, "json"), "application/json")}
-            >
-              Save JSON
-            </button>
-            <button
-              className="secondary"
-              onClick={() => triggerDownload(passportToMarkdown(passport), safeFilename(passport.title, "md"), "text/markdown")}
-            >
-              Save Markdown
-            </button>
-          </div>
-        </section>
-      )}
+          <p>{transferablePassport?.messages.length} messages selected{limit !== "all" ? `; ${passport.messages.length - (transferablePassport?.messages.length ?? 0)} older messages excluded by your range.` : "."}</p>
+          {estimate && <p className={estimate.reserved.status === "error" || (estimate.reserved.status === "composed" && estimate.reserved.omittedMessageCount > 0) ? "warning" : "coverage"}>
+            {estimate.short.status === "error"
+              ? "The newest message is too large for a continuation. Export the conversation or use a smaller source."
+              : estimate.reserved.status === "error"
+                ? "A long next question may leave too little room for even the newest message. Keep your next question short."
+                : estimate.short.omittedMessageCount > 0 || estimate.reserved.omittedMessageCount > 0
+                  ? `Estimated fit: ${estimate.reserved.includedMessageCount}–${estimate.short.includedMessageCount} of ${transferablePassport?.messages.length} selected messages, depending on your next question. You will confirm any omissions before insertion.`
+                  : "All selected messages fit with room for your next question (up to 8,000 characters)."}
+            {" "}Draft budget: 48,000 characters, including context and your question. The destination may have a smaller limit.
+          </p>}
+          {transferableSize > SESSION_WARN_BYTES && <p className="warning">Large transfer. Select fewer messages below or export a file.</p>}
+          <button className="primary" onClick={prepareTransfer} disabled={busy || transferableSize > SESSION_MAX_BYTES || estimate?.short.status === "error"}>
+            {busy ? "Opening…" : `Continue in ${PROVIDER_LABELS[selectedTarget]}`}
+          </button>
+          <button className="text-button reread" disabled={busy} onClick={() => { setPassport(null); setNotice(""); }}>Read another conversation / change capture mode</button>
+          <p className="privacy-note">Type your next question there, add the context, then review and send.</p>
+        </>}
+      </section>
 
-      {passport && (
-        <section className="card transfer-card">
-          <div className="step-number">3</div>
-          <div className="section-heading">
-            <div className="eyebrow">Transfer</div>
-            <h2>Choose a destination</h2>
-          </div>
-          <div className="provider-grid">
-            {PROVIDERS.filter((provider) => provider !== passport.source.provider).map((provider) => (
-              <button
-                key={provider}
-                disabled={busy}
-                className={target === provider ? "provider selected" : "provider"}
-                onClick={() => setTarget(provider)}
-              >
-                {PROVIDER_LABELS[provider]}
-              </button>
-            ))}
-          </div>
+      <details className="card more-options">
+        <summary>More options</summary>
+        {passport && <>
           <label className="field-label" htmlFor="message-limit">Context range</label>
           <select id="message-limit" disabled={busy} value={limit} onChange={(event) => setLimit(event.target.value as MessageLimit)}>
-            <option value="all">{previewOrigin === "page" ? "All detected messages" : "All imported messages"}</option>
+            <option value="all">All captured messages</option>
             <option value="100">Latest 100 available messages</option>
             <option value="50">Latest 50 available messages</option>
             <option value="20">Latest 20 available messages</option>
           </select>
-          <button className="primary" onClick={prepareTransfer} disabled={busy || transferableSize > SESSION_MAX_BYTES}>
-            Import into {PROVIDER_LABELS[target]}
-          </button>
-          <p className="privacy-note">
-            Opens one destination tab in standby mode. After you click Continue with context, that website can read or sync the inserted draft before Send. ChatPassport never sends it automatically.
-          </p>
-        </section>
-      )}
-
+          <div className="export-row">
+            <button className="secondary" onClick={() => triggerDownload(serializePassport(passport), safeFilename(passport.title, "json"), "application/json")}>Save JSON</button>
+            <button className="secondary" onClick={() => triggerDownload(passportToMarkdown(passport), safeFilename(passport.title, "md"), "text/markdown")}>Save Markdown</button>
+          </div>
+        </>}
+        <button className="import-button" onClick={() => fileInput.current?.click()} disabled={busy}>Import saved conversation (.chatpassport.json)</button>
+        <p>Text and code only. Images, files, artifacts, and hidden reasoning are not transferred.</p>
+      </details>
+      <input ref={fileInput} type="file" accept=".json,.chatpassport.json,application/json" hidden onChange={(event) => {
+        const file = event.target.files?.[0];
+        if (file) void importFile(file);
+      }} />
       {notice && <div className={`notice ${noticeKind}`} role="status">{notice}</div>}
 
       <footer>

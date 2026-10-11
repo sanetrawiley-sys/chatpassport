@@ -1,7 +1,7 @@
 import { buildContinuationPrompt, detectProvider } from "./core";
 import { PENDING_TTL_MS } from "./core";
 import type { PendingTransfer } from "./pending";
-import { PROVIDERS, type Provider } from "./passport";
+import { PROVIDERS, type Provider, type Passport } from "./passport";
 
 export const GET_PENDING_RELAY = "chatpassport:get-pending-relay";
 export const COMPOSE_PENDING_RELAY = "chatpassport:compose-pending-relay";
@@ -141,6 +141,15 @@ export function composeRelayResponse(
   const authorized = authorizedPending(pending, sender);
   if (!authorized || authorized.transferId !== transferId) return { status: "none" };
 
+  const result = planContinuation(authorized.passport, currentRequest);
+  return result.status === "composed" ? { ...result, transferId } : result;
+}
+
+/** Shared by source estimates and destination composition; never writes to an editor. */
+export function planContinuation(
+  passport: Passport,
+  currentRequest: string,
+): Omit<ComposedRelayResponse, "transferId"> | RelayErrorResponse {
   const request = currentRequest;
   if (!request.trim()) {
     return { status: "error", code: "empty-request", message: "Type your next question first." };
@@ -153,13 +162,13 @@ export function composeRelayResponse(
     };
   }
 
-  const total = authorized.passport.messages.length;
+  const total = passport.messages.length;
   let low = 1;
   let high = total - 1;
   let bestCount = 0;
   let bestText = "";
 
-  const fullCandidate = buildContinuationPrompt(authorized.passport, total, request);
+  const fullCandidate = buildContinuationPrompt(passport, total, request);
   if (fullCandidate.length <= RELAY_MAX_DRAFT_CHARS) {
     bestCount = total;
     bestText = fullCandidate;
@@ -167,7 +176,7 @@ export function composeRelayResponse(
 
   while (bestCount !== total && low <= high) {
     const count = Math.floor((low + high) / 2);
-    const candidate = buildContinuationPrompt(authorized.passport, count, request);
+    const candidate = buildContinuationPrompt(passport, count, request);
     if (candidate.length <= RELAY_MAX_DRAFT_CHARS) {
       bestCount = count;
       bestText = candidate;
@@ -187,7 +196,6 @@ export function composeRelayResponse(
 
   return {
     status: "composed",
-    transferId,
     text: bestText,
     includedMessageCount: bestCount,
     omittedMessageCount: total - bestCount,

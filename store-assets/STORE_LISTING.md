@@ -1,20 +1,20 @@
 # Chrome Web Store listing copy
 
-Use these fields as the English (`en`) listing for version 0.1.4.
+Use these fields as the English (`en`) listing for version 0.1.6.
 
 ## Product details
 
 **Name**
 
-ChatPassport
+ChatPassport — Move Chats Across ChatGPT, Claude & Gemini
 
 **Summary**
 
-Carry AI conversation context between ChatGPT, Claude, Gemini, and DeepSeek locally—without API keys or automatic sending.
+Continue chats across ChatGPT, Claude, Gemini, and DeepSeek. Local processing. No account or API key required.
 
 **Category**
 
-Productivity
+Productivity / Tools (select the available matching category in the dashboard)
 
 **Language**
 
@@ -22,40 +22,36 @@ English
 
 **Detailed description**
 
-ChatPassport lets you continue a conversation on another AI assistant without manually rebuilding the context.
+Hit a chat limit? Continue your conversation in another AI assistant without copying messages one by one.
 
-Automatically load and capture the rendered text of a conversation on ChatGPT, Claude, Gemini, or DeepSeek, choose a destination, and type the new question you actually want to ask. ChatPassport then combines the selected recent context with that question in the destination editor. You review the completed draft and use the website's own Send button.
+ChatPassport carries text and code between ChatGPT, Claude, Gemini, and DeepSeek. Choose where to continue, bring the context, and ask your next question. You review the draft and send it yourself.
 
-WHY IT IS DIFFERENT
+KEEP YOUR WORK MOVING
 
-• Standby continuation: context waits until you write the next request.
-• No accidental reply: ChatPassport never sends a message automatically.
-• Local processing: no ChatPassport server, account, API key, analytics, or tracking.
-• Transfer control: choose the latest 20, 50, 100, or all captured messages.
-• Size protection: oversized continuations keep the newest complete messages and report what was omitted.
-• Verification: the extension reads the destination editor back and reports if the site truncated or changed the inserted draft.
-• Portable backup: export to ChatPassport JSON or readable Markdown and import JSON later.
+• Switch assistants without manually rebuilding the conversation.
+• Choose Quick to read currently loaded messages, or Load history to collect older messages by scrolling.
+• See which messages fit. If the next question leaves too little room, confirm how many older messages will be omitted before anything is inserted.
+• Keep a portable copy as Markdown or ChatPassport JSON. Import saved JSON when you need it.
 
-SUPPORTED WEBSITES
+THREE SIMPLE STEPS
 
-• ChatGPT
-• Claude
-• Gemini
-• DeepSeek
+1. Open a supported conversation, choose a destination and click Prepare.
+2. Review the captured context and click Continue in your chosen assistant.
+3. Type your next question there, click Add context to draft, then review and send. If context needs trimming, confirm the displayed omissions first.
 
-CURRENT LIMITATIONS
+LOCAL PROCESSING, YOUR CONTROL
 
-ChatPassport transfers text and fenced code blocks. Images, attachments, citations, artifacts, and hidden reasoning are not transferred. Supported websites may change their page structure, so this first release is marked experimental.
+No ChatPassport account, API key, developer-operated server, analytics or tracking. Processing happens in your browser. One temporary transfer is bound to the destination tab and becomes inaccessible after one hour. Cleanup can be delayed while Chrome is asleep or stopped; expiry is also enforced on access.
 
-History capture scrolls through the conversation and merges rendered windows, including virtualized messages. You can stop and keep partial results. Capture is bounded to two minutes and a safety size limit. Reaching page boundaries is not proof of complete server history: hidden branches, collapsed content, slow or unsupported loaders may still be absent. Capture status is shown in the preview and included in JSON.
+ChatPassport never clicks Send. Once you insert a draft, the destination website can read or sync it before you send. Loading older history may trigger the source website's normal requests.
 
-Repeated windows without reliable message IDs are retained with an explicit warning about possible duplicates or gaps. JSON capture, export and import share a 25 MiB UTF-8 limit, including formatting and metadata. Oversized captures retain whole messages that fit and are marked partial; an individually oversized message is rejected rather than truncated. Code-block whitespace is preserved.
+WHAT IS INCLUDED
 
-History scrolling now recognizes the same DeepSeek and Gemini message structures as extraction. Nonbreaking spaces in code and drafts are retained when verifying the destination editor.
+Text and fenced code blocks. Images, attachments, citations, artifacts and hidden reasoning are not transferred. Quick capture includes only currently rendered messages; history capture is limited to two minutes and cannot guarantee hidden, collapsed or server-side history. Coverage and any uncertainty are shown in the panel.
 
-PRIVACY
+Drafts have a 48,000-character budget including your next question (up to 8,000 characters). Oversized drafts retain complete recent messages, with explicit approval for omissions. This is not AI summarization; destination models may impose smaller limits. Captured JSON files have a 25 MiB limit.
 
-Conversation processing takes place in the browser. One pending transfer is stored temporarily in Chrome session storage, bound to one destination tab, and becomes inaccessible after one hour. Alarms schedule cleanup; sleeping or stopped browsers may delay deletion until Chrome resumes. Access and worker startup also enforce expiry. ChatPassport does not transmit conversation data to the developer. Once you click Continue with context, the destination website can read or sync the inserted draft before Send. ChatPassport never sends it automatically. Scrolling history may trigger normal requests by the source website.
+ChatPassport is not affiliated with OpenAI, Anthropic, Google, or DeepSeek.
 
 ## Optional listing URLs
 
@@ -67,16 +63,16 @@ These links work publicly only after the repository is public. If it remains pri
 
 ## Reviewer test instructions
 
-1. Sign in to any supported website and open a conversation containing at least two messages.
-2. Click the ChatPassport toolbar icon to open its side panel.
-3. Click **Capture conversation history**. Confirm the title, source, message count, and size appear.
-4. Select a different supported assistant and click **Import into [destination]**.
-5. On the destination page, confirm the **ChatPassport context is ready** card appears.
-6. Type a short new question in the destination message box, then click **Continue with context** on the ChatPassport card.
-7. Confirm the editor now contains prior context plus the new question and that ChatPassport did not submit the message.
-8. Review the editor and use the destination website's Send button manually if desired.
+1. Sign in to a supported AI website and open a conversation with at least two text messages.
+2. Open ChatPassport, choose another assistant, and select Quick or Load history.
+3. Click Prepare for the chosen assistant. Check the captured count and coverage notice.
+4. Click Continue in the chosen assistant. The destination tab shows a context-ready card.
+5. Type a question in its normal editor and click Add context to draft.
+6. If an omission confirmation appears, verify the editor is unchanged, then click Confirm and add context.
+7. Review the inserted draft. Confirm that ChatPassport did not click Send.
+8. More options exposes context ranges, JSON/Markdown export and JSON import.
 
-No special account, license key, ChatPassport server, or API credential is required. Reviewer accounts for supported AI services are governed by those services.
+No ChatPassport account, license key, backend or API key is required. Normal accounts for the supported AI websites are required under their own terms.
 
 ## Privacy practices fields
 

@@ -114,3 +114,66 @@ describe('destination relay cancellation', () => {
     dom.window.close();
   });
 });
+
+describe('omission approval and recovery', () => {
+  const trimmed = { ...composed, includedMessageCount: 2, omittedMessageCount: 5 };
+  function respond() {
+    mocks.sendMessage.mockImplementation(({ type }: { type: string }) => {
+      if (type === GET_PENDING_RELAY) return Promise.resolve(ready);
+      if (type === COMPOSE_PENDING_RELAY) return Promise.resolve(trimmed);
+      return Promise.resolve(true);
+    });
+  }
+  const action = (host: HTMLElement, label: string) => Array.from(host.shadowRoot!.querySelectorAll('button')).find((item) => item.textContent === label)!;
+  it('requires explicit approval before insertion, then checks the transfer again', async () => {
+    respond();
+    const { dom, host, continueButton, transaction } = await setup();
+    continueButton.click();
+    await vi.waitFor(() => expect(host.shadowRoot!.textContent).toContain('5 older messages'));
+    expect(transaction.replace).not.toHaveBeenCalled();
+    action(host, 'Confirm and add context').click();
+    await vi.waitFor(() => expect(transaction.replace).toHaveBeenCalledWith(trimmed.text));
+    expect(mocks.sendMessage.mock.calls.filter(([arg]) => arg.type === GET_PENDING_RELAY)).toHaveLength(2);
+    dom.window.close();
+  });
+  it.each(['Go back', 'Dismiss'])('leaves the editor alone on %s and disposes the transaction', async (label) => {
+    respond();
+    const { dom, host, continueButton, transaction } = await setup();
+    continueButton.click();
+    await vi.waitFor(() => expect(host.shadowRoot!.querySelector('.confirmation')).not.toBeNull());
+    action(host, label).click();
+    await vi.waitFor(() => expect(transaction.dispose).toHaveBeenCalled());
+    expect(transaction.replace).not.toHaveBeenCalled();
+    expect(mocks.sendMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: COMPLETE_PENDING_RELAY }));
+    dom.window.close();
+  });
+  it('does not insert a transfer that expires while the user reviews omissions', async () => {
+    respond();
+    const { dom, host, continueButton, transaction } = await setup();
+    continueButton.click();
+    await vi.waitFor(() => expect(host.shadowRoot!.querySelector('.confirmation')).not.toBeNull());
+    mocks.sendMessage.mockResolvedValue({ status: 'none' });
+    action(host, 'Confirm and add context').click();
+    await vi.waitFor(() => expect(transaction.dispose).toHaveBeenCalled());
+    expect(transaction.replace).not.toHaveBeenCalled();
+    expect(host.shadowRoot!.textContent).toContain('no longer available');
+    dom.window.close();
+  });
+  it('offers the original question for recovery when an editor rejects the draft', async () => {
+    respond();
+    const copy = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { clipboard: { writeText: copy } });
+    const { dom, host, continueButton, transaction } = await setup();
+    transaction.replace.mockResolvedValue({ success: false, message: 'Draft changed.' });
+    continueButton.click();
+    await vi.waitFor(() => expect(host.shadowRoot!.querySelector('.confirmation')).not.toBeNull());
+    action(host, 'Confirm and add context').click();
+    await vi.waitFor(() => expect(transaction.dispose).toHaveBeenCalled());
+    const recover = action(host, 'Copy original question');
+    expect(recover.hidden).toBe(false);
+    recover.click();
+    await vi.waitFor(() => expect(copy).toHaveBeenCalledWith('My question'));
+    expect(mocks.sendMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: COMPLETE_PENDING_RELAY }));
+    dom.window.close();
+  });
+});

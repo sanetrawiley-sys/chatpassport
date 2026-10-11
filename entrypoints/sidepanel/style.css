@@ -182,3 +182,16 @@ footer { padding-top: 8px; color: #898d86; font-size: 9px; letter-spacing: 0.6px
   .card, .notice { animation: arrive 180ms ease-out; }
   @keyframes arrive { from { opacity: 0; transform: translateY(3px); } }
 }
+
+.more-options summary { cursor: pointer; font-size: 13px; font-weight: 700; }
+.more-options[open] summary { margin-bottom: 16px; }
+.more-options .import-button { margin: 14px 0 0; padding: 10px; }
+.conversation-summary { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+.card .coverage { color: #315c49; background: #eef4ee; border-radius: 7px; padding: 9px; }
+.stop-button { width: 100%; margin-top: 10px; }
+.reread { display: block; margin: 12px auto 0; color: var(--green); line-height: 1.5; }
+button:focus-visible, select:focus-visible, summary:focus-visible { outline: 3px solid #c6923a; outline-offset: 3px; }
+.card p { font-size: 13px; }
+.card .privacy-note { font-size: 12px; }
+.field-label { font-size: 11px; }
+footer { font-size: 10px; }

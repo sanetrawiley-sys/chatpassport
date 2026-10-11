@@ -29,7 +29,7 @@ export const passportSchema = z.object({
   }),
   messages: z.array(messageSchema).min(1),
   capture: z.object({
-    method: z.literal("scroll"),
+    method: z.enum(["scroll", "loaded"]),
     status: z.enum(["page-history", "partial"]),
     reason: z.string(),
   }).optional(),
@@ -71,7 +71,7 @@ export function fitCapturedPassport(passport: Passport, maxBytes = PASSPORT_MAX_
   const sizeReason = 'The UTF-8 JSON file limit was reached. Only the collected messages that fit are included; later messages were omitted without cutting any message.';
   const previousReason = passport.capture?.status === 'partial' ? passport.capture.reason : '';
   const capture = {
-    method: 'scroll' as const, status: 'partial' as const,
+    method: passport.capture?.method ?? 'scroll', status: 'partial' as const,
     reason: previousReason.startsWith(sizeReason) ? previousReason : sizeReason + (previousReason ? ` ${previousReason}` : ''),
   };
   let low = 1;
