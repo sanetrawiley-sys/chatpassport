@@ -44,6 +44,13 @@ A ChatPassport file is UTF-8 JSON with a `.chatpassport.json` suffix. Version
 - `messages[].role`: `user`, `assistant`, or `system`.
 - `messages[].content`: at least one text content part.
 
+Captured assistant text is Markdown: headings, lists, links, GFM tables,
+fenced code blocks (with a language tag when the page exposes one) and TeX
+math as `$...$` or `$$...$$`. User text is kept as typed, without added
+Markdown markup. Non-decorative images appear as `[image: description]` or `[image]`
+placeholders. Files captured by earlier extension versions contain plain text; both
+forms are valid `1.0` content and import unchanged.
+
 Unknown versions must be rejected instead of silently reinterpreted. Future
 format releases will provide explicit migrations.
 

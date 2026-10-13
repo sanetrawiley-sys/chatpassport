@@ -62,7 +62,7 @@ After capture, **More options** lets you transfer all captured messages or only 
 
 | Included | Not included |
 | --- | --- |
-| Readable conversation text, message order and roles, fenced code blocks | Images, uploaded files, citations, artifacts, hidden reasoning, or messages that the page did not expose |
+| Conversation text as Markdown (headings, lists, links, tables, fenced code blocks with their language, TeX math), message order and roles, and `[image: description]` or `[image]` placeholders for non-decorative images | Image and file contents, citation cards, artifacts, hidden reasoning, or messages that the page did not expose |
 
 The destination draft has a **48,000-character budget**, including your next question. ChatPassport estimates how many complete recent messages fit before you continue, then recalculates using the question you actually typed. If it must omit older messages, it shows the counts and asks you to confirm before changing the editor. It does not silently cut a message in half or summarize it with AI. A destination model may have a smaller context limit.
 
@@ -108,6 +108,10 @@ pnpm release:chrome
 ## Contributing
 
 Issues and pull requests are welcome. For a compatibility report, include the assistant, the action you took, the result you saw, and any Chrome extension errors, with personal conversation content removed. Run `pnpm check` before opening a pull request.
+
+## License
+
+ChatPassport is released under the [MIT License](LICENSE).
 
 ## Star history
 

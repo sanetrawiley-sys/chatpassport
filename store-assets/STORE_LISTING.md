@@ -47,7 +47,7 @@ ChatPassport never clicks Send. Once you insert a draft, the destination website
 
 WHAT IS INCLUDED
 
-Text and fenced code blocks. Images, attachments, citations, artifacts and hidden reasoning are not transferred. Quick capture includes only currently rendered messages; history capture is limited to two minutes and cannot guarantee hidden, collapsed or server-side history. Coverage and any uncertainty are shown in the panel.
+Text as Markdown, including tables, lists, links, fenced code blocks and TeX math. Non-decorative images appear as [image: description] or [image] placeholders; image and attachment contents, citation cards, artifacts and hidden reasoning are not transferred. Quick capture includes only currently rendered messages; history capture is limited to two minutes and cannot guarantee hidden, collapsed or server-side history. Coverage and any uncertainty are shown in the panel.
 
 Drafts have a 48,000-character budget including your next question (up to 8,000 characters). Oversized drafts retain complete recent messages, with explicit approval for omissions. This is not AI summarization; destination models may impose smaller limits. Captured JSON files have a 25 MiB limit.
 
