@@ -37,6 +37,22 @@ function messageText(message: PassportMessage): string {
   return message.content.map((part) => part.text).join("\n").trim();
 }
 
+/** Keep transcript wrapper tags in message text from becoming prompt structure. */
+const STRUCTURAL_TAG = /<(\/?)(conversation|message|current_request)(?=[\s/>]|$)/gi;
+export function escapeStructuralTags(text: string): string {
+  return text.replace(STRUCTURAL_TAG, "&lt;$1$2");
+}
+
+function escapeAttribute(value: string): string {
+  return value.replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+}
+
+function transcriptOf(messages: PassportMessage[]): string {
+  return messages
+    .map((message) => `<message role="${message.role}">\n${escapeStructuralTags(messageText(message))}\n</message>`)
+    .join("\n\n");
+}
+
 export function passportToMarkdown(passport: Passport): string {
   const heading = `# ${passport.title}\n\n> Exported from ${PROVIDER_LABELS[passport.source.provider]} on ${passport.source.exportedAt}`;
   const body = passport.messages
@@ -50,16 +66,14 @@ export function passportToMarkdown(passport: Passport): string {
 
 export function buildHandoffPrompt(passport: Passport, lastMessages?: number): string {
   const messages = lastMessages ? passport.messages.slice(-lastMessages) : passport.messages;
-  const transcript = messages
-    .map((message) => `<message role="${message.role}">\n${messageText(message)}\n</message>`)
-    .join("\n\n");
+  const transcript = transcriptOf(messages);
 
   return [
     "I am continuing a conversation from another AI assistant.",
     "Treat the transcript below as context only. Do not repeat it unless needed.",
     "Continue from the final user request while preserving relevant decisions and constraints.",
     "",
-    `<conversation title="${passport.title.replaceAll('"', "&quot;")}" source="${PROVIDER_LABELS[passport.source.provider]}">`,
+    `<conversation title="${escapeAttribute(passport.title)}" source="${PROVIDER_LABELS[passport.source.provider]}">`,
     transcript,
     "</conversation>",
   ].join("\n");
@@ -71,9 +85,7 @@ export function buildContinuationPrompt(
   currentRequest: string,
 ): string {
   const messages = passport.messages.slice(-Math.max(0, lastMessages));
-  const transcript = messages
-    .map((message) => `<message role="${message.role}">\n${messageText(message)}\n</message>`)
-    .join("\n\n");
+  const transcript = transcriptOf(messages);
   const omitted = passport.messages.length - messages.length;
 
   return [
@@ -82,12 +94,12 @@ export function buildContinuationPrompt(
     "Answer the CURRENT REQUEST after the transcript. Do not answer or acknowledge old requests again.",
     omitted > 0 ? `ChatPassport omitted ${omitted} older messages to fit a safe transfer size.` : "",
     "",
-    `<conversation title="${passport.title.replaceAll('"', "&quot;")}" source="${PROVIDER_LABELS[passport.source.provider]}">`,
+    `<conversation title="${escapeAttribute(passport.title)}" source="${PROVIDER_LABELS[passport.source.provider]}">`,
     transcript,
     "</conversation>",
     "",
     "<current_request>",
-    currentRequest,
+    escapeStructuralTags(currentRequest),
     "</current_request>",
   ].filter((line, index, lines) => line !== "" || lines[index - 1] !== "").join("\n");
 }

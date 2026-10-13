@@ -316,7 +316,7 @@ export default function App() {
           </div>
         </>}
         <button className="import-button" onClick={() => fileInput.current?.click()} disabled={busy}>Import saved conversation (.chatpassport.json)</button>
-        <p>Text and code only. Images, files, artifacts, and hidden reasoning are not transferred.</p>
+        <p>Text, code, tables, links and math, as Markdown. Non-decorative images become [image: description] or [image] placeholders; files, artifacts, and hidden reasoning are not transferred.</p>
       </details>
       <input ref={fileInput} type="file" accept=".json,.chatpassport.json,application/json" hidden onChange={(event) => {
         const file = event.target.files?.[0];
