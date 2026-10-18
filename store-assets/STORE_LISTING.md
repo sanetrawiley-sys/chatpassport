@@ -1,6 +1,6 @@
 # Chrome Web Store listing copy
 
-Use these fields as the English (`en`) listing for version 0.1.6.
+Draft English (`en`) listing copy for the next release. Check the wording and screenshots after local testing.
 
 ## Product details
 
@@ -30,20 +30,20 @@ KEEP YOUR WORK MOVING
 
 • Switch assistants without manually rebuilding the conversation.
 • Choose Quick to read currently loaded messages, or Load history to collect older messages by scrolling.
-• See which messages fit. If the next question leaves too little room, confirm how many older messages will be omitted before anything is inserted.
+• Review selected message previews, write your next question, and confirm the exact number of older messages that will be omitted before opening the destination.
 • Keep a portable copy as Markdown or ChatPassport JSON. Import saved JSON when you need it.
 
 THREE SIMPLE STEPS
 
 1. Open a supported conversation, choose a destination and click Prepare.
-2. Review the captured context and click Continue in your chosen assistant.
-3. Type your next question there, click Add context to draft, then review and send. If context needs trimming, confirm the displayed omissions first.
+2. Review the capture, choose a message range, write your next question, and confirm any omissions.
+3. Open an editable draft in your chosen assistant. ChatPassport fills an empty message box when ready. Review the draft and click Send yourself. Manual insert and copy options are available if needed.
 
 LOCAL PROCESSING, YOUR CONTROL
 
 No ChatPassport account, API key, developer-operated server, analytics or tracking. Processing happens in your browser. One temporary transfer is bound to the destination tab and becomes inaccessible after one hour. Cleanup can be delayed while Chrome is asleep or stopped; expiry is also enforced on access.
 
-ChatPassport never clicks Send. Once you insert a draft, the destination website can read or sync it before you send. Loading older history may trigger the source website's normal requests.
+ChatPassport never clicks Send. Once the draft is inserted automatically or manually, the destination website can read or sync it before you send. Loading older history may trigger the source website's normal requests.
 
 WHAT IS INCLUDED
 
@@ -65,12 +65,11 @@ These links work publicly only after the repository is public. If it remains pri
 
 1. Sign in to a supported AI website and open a conversation with at least two text messages.
 2. Open ChatPassport, choose another assistant, and select Quick or Load history.
-3. Click Prepare for the chosen assistant. Check the captured count and coverage notice.
-4. Click Continue in the chosen assistant. The destination tab shows a context-ready card.
-5. Type a question in its normal editor and click Add context to draft.
-6. If an omission confirmation appears, verify the editor is unchanged, then click Confirm and add context.
-7. Review the inserted draft. Confirm that ChatPassport did not click Send.
-8. More options exposes context ranges, JSON/Markdown export and JSON import.
+3. Click Prepare for the chosen assistant. Check the captured count, coverage notice, and selected message previews.
+4. Choose a message range, enter a next question, and confirm any displayed omission count.
+5. Click Open editable draft. The destination tab should fill its empty editor automatically. If it cannot, try Insert prepared draft or Copy prepared draft on the card.
+6. Review the inserted draft. Confirm that ChatPassport did not click Send.
+7. More options exposes JSON/Markdown export and JSON import.
 
 No ChatPassport account, license key, backend or API key is required. Normal accounts for the supported AI websites are required under their own terms.
 
@@ -82,7 +81,7 @@ Allow users to locally capture the visible text of an AI conversation and contin
 
 **`scripting` justification**
 
-Used after explicit user actions to extract the visible conversation from the active supported tab and to place a user-reviewed continuation into the supported destination editor. It is not used on unrelated websites.
+Used after explicit user actions to extract the visible conversation from the active supported tab and to place a prepared continuation into an empty supported destination editor. The user reviews and sends the draft. It is not used on unrelated websites.
 
 **`storage` justification**
 
@@ -94,7 +93,7 @@ Used to schedule cleanup of expired pending transfers. Expiry is also checked on
 
 **`sidePanel` justification**
 
-Used to show the ChatPassport capture, preview, export, import, and destination-selection interface alongside the active conversation.
+Used to show the ChatPassport capture, preview, message selection, next-question, export, import, and destination-selection interface alongside the active conversation.
 
 **Host permission justification**
 

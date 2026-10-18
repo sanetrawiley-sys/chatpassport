@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { JSDOM } from 'jsdom';
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -37,6 +38,12 @@ beforeEach(async () => {
 afterEach(async () => { await act(async () => root.unmount()); dom.window.close(); vi.unstubAllGlobals(); });
 const button = (label: string) => Array.from(document.querySelectorAll('button')).find((node) => node.textContent === label)!;
 const click = async (label: string) => act(async () => { button(label).click(); });
+const writeQuestion = async (value: string) => act(async () => {
+  const input = document.querySelector<HTMLTextAreaElement>('#next-question')!;
+  Object.getOwnPropertyDescriptor(dom.window.HTMLTextAreaElement.prototype, 'value')!.set!.call(input, value);
+  input.dispatchEvent(new dom.window.InputEvent('input', { bubbles: true, data: value, inputType: 'insertText' }));
+  input.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+});
 
 describe('independent preview and transfer state', () => {
   it('does not reset the selected target on background tab/storage refresh', async () => {
@@ -89,12 +96,24 @@ describe('guided capture and capacity estimates', () => {
     const large = { ...passport, messages: passport.messages.map((message) => ({ ...message, content: [{ type: 'text' as const, text: 'x'.repeat(3000) }] })) };
     mocks.extract.mockResolvedValue(large);
     await click('Prepare for Claude');
-    expect(document.body.textContent).toContain('Estimated fit:');
-    expect(document.body.textContent).toContain('confirm any omissions');
+    await writeQuestion('Continue the plan');
+    expect(document.body.textContent).toContain('older messages will be omitted');
     expect(mocks.save).not.toHaveBeenCalled();
     await click('Gemini');
-    await click('Continue in Gemini');
-    expect(mocks.save).toHaveBeenCalledWith(large, 'gemini');
+    expect(button('Open editable draft in Gemini').disabled).toBe(true);
+    await act(async () => {
+      const checkbox = document.querySelector<HTMLInputElement>('.omission-confirmation input')!;
+      checkbox.click();
+    });
+    await click('Open editable draft in Gemini');
+    expect(mocks.save).toHaveBeenCalledWith(large, 'gemini', 'Continue the plan', true);
+  });
+  it('prepares an exact draft without omission approval when everything fits', async () => {
+    await click('Prepare for Claude');
+    await writeQuestion('What is the next step?');
+    expect(document.body.textContent).toContain('No additional messages will be omitted.');
+    await click('Open editable draft in Claude');
+    expect(mocks.save).toHaveBeenCalledWith(passport, 'claude', 'What is the next step?', false);
   });
   it('does not offer the current source as a destination before reading', async () => {
     mocks.tab.mockResolvedValue({ id: 2, url: 'https://claude.ai/new', provider: 'claude' });

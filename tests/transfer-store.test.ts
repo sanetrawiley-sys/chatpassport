@@ -32,6 +32,18 @@ beforeEach(() => {
 });
 
 describe('pending transfer lifecycle', () => {
+  it('stores a prepared question only after exact omission approval', async () => {
+    const large: Passport = { ...passport, messages: [
+      { id: 'old', role: 'user', content: [{ type: 'text', text: 'a'.repeat(50_000) }] },
+      { id: 'latest', role: 'assistant', content: [{ type: 'text', text: 'Latest decision' }] },
+    ] };
+    await expect(createPending(large, 'claude', 'Continue')).rejects.toThrow('Confirm the 1 older messages');
+    expect(mocks.createTab).not.toHaveBeenCalled();
+    const prepared = await createPending(large, 'claude', 'Continue', true);
+    expect(prepared.currentRequest).toBe('Continue');
+    expect(prepared.approvedOmittedMessageCount).toBe(1);
+    expect(await readPending()).toEqual(prepared);
+  });
   it('binds the transfer and alarm before navigating to the destination', async () => {
     mocks.updateTab.mockImplementation(async () => {
       expect(stored[PENDING_KEY]).toMatchObject({ targetTabId: 42, target: 'claude' });

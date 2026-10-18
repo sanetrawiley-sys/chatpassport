@@ -1,15 +1,21 @@
 /** Shared reader/writer, also serializable into a page without module dependencies. */
 export function composerToolsOnPage() {
-  const selectors = [
-    '#prompt-textarea', 'textarea[placeholder*="message" i]', 'textarea[placeholder*="ask" i]',
-    'div[contenteditable="true"].ProseMirror', 'rich-textarea [contenteditable="true"]',
-    '.ql-editor[contenteditable="true"]', '[contenteditable="true"][role="textbox"]', 'textarea',
-  ];
+  const selectorsByHost: Record<string, string[]> = {
+    'chatgpt.com': ['#prompt-textarea', 'main [contenteditable="true"][role="textbox"]'],
+    'chat.openai.com': ['#prompt-textarea', 'main [contenteditable="true"][role="textbox"]'],
+    'claude.ai': ['.ProseMirror[contenteditable="true"]', 'main [contenteditable="true"][role="textbox"]'],
+    'gemini.google.com': ['rich-textarea [contenteditable="true"]', '.ql-editor[contenteditable="true"]'],
+    'chat.deepseek.com': ['.ql-editor[contenteditable="true"]', 'textarea[placeholder*="message" i]'],
+  };
+  const selectors = selectorsByHost[location.hostname] ?? [];
   function find(): HTMLElement | undefined {
     for (const selector of selectors) {
-      const match = Array.from(document.querySelectorAll<HTMLElement>(selector))
-        .find((element) => element.getClientRects().length > 0 && !element.hasAttribute('disabled'));
-      if (match) return match;
+      const matches = Array.from(document.querySelectorAll<HTMLElement>(selector))
+        .filter((element) => element.getClientRects().length > 0
+          && !element.hasAttribute('disabled') && element.getAttribute('aria-disabled') !== 'true'
+          && !(element instanceof HTMLTextAreaElement && element.readOnly));
+      if (matches.length === 1) return matches[0];
+      if (matches.length > 1) return undefined;
     }
   }
   function read(element: HTMLElement): string {

@@ -33,6 +33,17 @@ const pending: PendingTransfer = {
 };
 
 describe("automatic relay authorization", () => {
+  it('uses the source-approved question and omission count for a prepared relay', () => {
+    const prepared = { ...pending, currentRequest: 'Approved question', approvedOmittedMessageCount: 0 };
+    const ready = createRelayResponse(prepared, sender('https://chat.deepseek.com/'));
+    expect(ready).toMatchObject({ status: 'ready', currentRequest: 'Approved question', approvedOmittedMessageCount: 0 });
+    const composed = composeRelayResponse(prepared, prepared.transferId, 'Changed on destination', sender('https://chat.deepseek.com/'));
+    expect(composed.status).toBe('composed');
+    if (composed.status === 'composed') {
+      expect(composed.text).toContain('<current_request>\nApproved question\n</current_request>');
+      expect(composed.text).not.toContain('Changed on destination');
+    }
+  });
   it('preserves leading indentation, empty lines and trailing newlines in a new request', () => {
     const request = '  first\n\n    second\n';
     const response = composeRelayResponse(pending, pending.transferId, request, sender('https://chat.deepseek.com/'));

@@ -21,7 +21,8 @@ export default defineContentScript({
     "https://chat.deepseek.com/*",
   ],
   runAt: "document_idle",
-  main() {
+  main(ctx) {
+    ctx.onInvalidated?.(() => document.getElementById(STATUS_ELEMENT_ID)?.remove());
     void startStandbyRelay();
   },
 });
@@ -56,10 +57,12 @@ function showRelayReady(relay: ReadyRelayResponse): void {
   card.className = "card";
 
   const heading = document.createElement("strong");
-  heading.textContent = "Context ready · write your next question";
+  heading.textContent = relay.currentRequest === undefined ? "Context ready · write your next question" : "Preparing your editable draft…";
 
   const detail = document.createElement("p");
-  detail.textContent = `${relay.messageCount} selected messages from ${PROVIDER_LABELS[relay.source]}. Type in ${PROVIDER_LABELS[relay.target]}’s message box, then click Add context to draft. The website can read the draft once inserted; you send it yourself.`;
+  detail.textContent = relay.currentRequest === undefined
+    ? `${relay.messageCount} selected messages from ${PROVIDER_LABELS[relay.source]}. Type in ${PROVIDER_LABELS[relay.target]}’s message box, then click Add context to draft. The website can read the draft once inserted; you send it yourself.`
+    : `${relay.messageCount} selected messages from ${PROVIDER_LABELS[relay.source]}. Your draft will appear in the message box when it is ready. Review it, then use ${PROVIDER_LABELS[relay.target]}’s Send button yourself.`;
 
   const feedback = document.createElement("p");
   feedback.className = "feedback";
@@ -71,12 +74,17 @@ function showRelayReady(relay: ReadyRelayResponse): void {
   const continueButton = document.createElement("button");
   continueButton.type = "button";
   continueButton.className = "primary";
-  continueButton.textContent = "Add context to draft";
+  continueButton.textContent = relay.currentRequest === undefined ? "Add context to draft" : "Insert prepared draft";
+  continueButton.disabled = relay.currentRequest !== undefined;
 
   const recoveryButton = document.createElement("button");
   recoveryButton.type = "button";
-  recoveryButton.textContent = "Copy original question";
+  recoveryButton.textContent = relay.currentRequest === undefined ? "Copy original question" : "Copy next question";
   recoveryButton.hidden = true;
+  const copyDraftButton = document.createElement("button");
+  copyDraftButton.type = "button";
+  copyDraftButton.textContent = "Copy prepared draft";
+  copyDraftButton.hidden = relay.currentRequest === undefined;
   const dismiss = document.createElement("button");
   dismiss.type = "button";
   dismiss.textContent = "Dismiss";
@@ -86,7 +94,10 @@ function showRelayReady(relay: ReadyRelayResponse): void {
   });
 
   continueButton.addEventListener("click", () => {
-    void prepareContinuation(relay, { card, heading, detail, feedback, continueButton, dismissButton: dismiss, recoveryButton }, isActive);
+    void prepareContinuation(relay, { host, card, heading, detail, feedback, continueButton, dismissButton: dismiss, recoveryButton }, isActive);
+  });
+  copyDraftButton.addEventListener("click", () => {
+    void copyPreparedDraft(relay, { host, card, heading, detail, feedback, continueButton, dismissButton: dismiss, recoveryButton }, copyDraftButton, isActive);
   });
 
   const style = document.createElement("style");
@@ -125,12 +136,41 @@ function showRelayReady(relay: ReadyRelayResponse): void {
     button:disabled { cursor: wait; opacity: 0.55; }
   `;
 
-  actions.append(continueButton, dismiss, recoveryButton);
+  actions.append(continueButton, copyDraftButton, dismiss, recoveryButton);
   card.append(heading, detail, feedback, actions);
   shadow.append(style, card);
+  if (relay.currentRequest !== undefined) {
+    void autoPrepareContinuation(relay, { host, card, heading, detail, feedback, continueButton, dismissButton: dismiss, recoveryButton }, isActive);
+  }
+}
+
+async function copyPreparedDraft(
+  relay: ReadyRelayResponse, elements: RelayElements, button: HTMLButtonElement, isActive: () => boolean,
+): Promise<void> {
+  button.disabled = true;
+  try {
+    const response: unknown = await browser.runtime.sendMessage({
+      type: COMPOSE_PENDING_RELAY, transferId: relay.transferId, currentRequest: relay.currentRequest ?? "",
+    });
+    if (!isActive()) return;
+    if (!isRelayResponse(response) || response.status !== "composed" || response.transferId !== relay.transferId
+      || response.omittedMessageCount !== relay.approvedOmittedMessageCount) {
+      showError(elements, "The prepared draft is no longer available or its message count changed. Start the transfer again.");
+      return;
+    }
+    await navigator.clipboard.writeText(response.text);
+    if (!isActive()) return;
+    elements.feedback.hidden = false;
+    elements.feedback.textContent = "Draft copied. Paste it into the destination editor, review it, then click Send.";
+  } catch {
+    if (isActive()) showError(elements, "Clipboard access failed. Try inserting the prepared draft after the editor loads.");
+  } finally {
+    button.disabled = false;
+  }
 }
 
 interface RelayElements {
+  host: HTMLElement;
   card: HTMLElement;
   heading: HTMLElement;
   detail: HTMLElement;
@@ -140,24 +180,54 @@ interface RelayElements {
   recoveryButton: HTMLButtonElement;
 }
 
+async function autoPrepareContinuation(relay: ReadyRelayResponse, elements: RelayElements, isActive: () => boolean): Promise<void> {
+  const deadline = Date.now() + 15_000;
+  while (isActive() && Date.now() < deadline) {
+    const transaction = beginComposerTransaction();
+    if (transaction) {
+      const hasExistingDraft = !!transaction.original.trim();
+      transaction.dispose();
+      if (hasExistingDraft) {
+        showError(elements, "The destination already has a draft. Nothing was changed. Clear it, then click Insert prepared draft.");
+        resetButton(elements.continueButton, relay);
+        return;
+      }
+      await prepareContinuation(relay, elements, isActive);
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 300));
+  }
+  if (isActive()) {
+    showError(elements, "The message box is not ready yet. Wait for it to appear, then click Insert prepared draft.");
+    resetButton(elements.continueButton, relay);
+  }
+}
+
 async function prepareContinuation(relay: ReadyRelayResponse, elements: RelayElements, isActive: () => boolean): Promise<void> {
   const transaction = beginComposerTransaction();
   if (!transaction) {
     showError(elements, "The message box is not ready yet. Wait for the page to finish loading and try again.");
+    resetButton(elements.continueButton, relay);
     return;
   }
+  const request = relay.currentRequest ?? transaction.original;
   elements.recoveryButton.hidden = true;
   elements.recoveryButton.onclick = async () => {
     try {
-      await navigator.clipboard.writeText(transaction.original);
+      await navigator.clipboard.writeText(request);
       elements.feedback.hidden = false;
-      elements.feedback.textContent = "Original question copied. You can paste it back into the message box.";
+      elements.feedback.textContent = "Question copied. You can paste it back into the message box.";
     } catch {
-      showError(elements, `Clipboard unavailable. Original question: ${transaction.original}`);
+      showError(elements, `Clipboard unavailable. Your question: ${request}`);
     }
   };
   try {
-    if (!transaction.original.trim()) {
+    if (relay.currentRequest !== undefined && transaction.original.trim()) {
+      showError(elements, "The destination already has a draft. Nothing was changed. Clear it, then click Insert prepared draft.");
+      resetButton(elements.continueButton, relay);
+      return;
+    }
+    if (!request.trim()) {
       showError(elements, "Type your next question in the message box first.");
       return;
     }
@@ -173,36 +243,36 @@ async function prepareContinuation(relay: ReadyRelayResponse, elements: RelayEle
       response = await browser.runtime.sendMessage({
         type: COMPOSE_PENDING_RELAY,
         transferId: relay.transferId,
-        currentRequest: transaction.original,
+        currentRequest: request,
       });
     } catch {
       if (!isActive()) return;
       showError(elements, "The extension could not prepare this transfer. Open ChatPassport and try again.");
-      resetButton(elements.continueButton);
+      resetButton(elements.continueButton, relay);
       return;
     }
     if (!isActive()) return;
 
     if (!isRelayResponse(response) || response.status === "none") {
       showError(elements, "This transfer is no longer available. Start it again from the source conversation.");
-      resetButton(elements.continueButton);
+      resetButton(elements.continueButton, relay);
       return;
     }
     if (response.status === "error") {
       showError(elements, response.message);
-      resetButton(elements.continueButton);
+      resetButton(elements.continueButton, relay);
       return;
     }
     if (response.status !== "composed" || response.transferId !== relay.transferId) {
       showError(elements, "The extension returned an unexpected transfer response.");
-      resetButton(elements.continueButton);
+      resetButton(elements.continueButton, relay);
       return;
     }
 
-    if (response.omittedMessageCount > 0) {
+    if (response.omittedMessageCount > 0 && response.omittedMessageCount !== relay.approvedOmittedMessageCount) {
       const accepted = await confirmOmissions(response, elements);
       if (!accepted || !isActive()) {
-        resetButton(elements.continueButton);
+        resetButton(elements.continueButton, relay);
         return;
       }
     }
@@ -214,13 +284,13 @@ async function prepareContinuation(relay: ReadyRelayResponse, elements: RelayEle
     } catch {
       if (!isActive()) return;
       showError(elements, "The extension could not verify this transfer. Open ChatPassport and try again.");
-      resetButton(elements.continueButton);
+      resetButton(elements.continueButton, relay);
       return;
     }
     if (!isActive()) return;
     if (!isRelayResponse(current) || current.status !== "ready" || current.transferId !== relay.transferId) {
       showError(elements, "This transfer is no longer available. Start it again from the source conversation.");
-      resetButton(elements.continueButton);
+      resetButton(elements.continueButton, relay);
       return;
     }
 
@@ -228,8 +298,8 @@ async function prepareContinuation(relay: ReadyRelayResponse, elements: RelayEle
   } catch {
     if (!isActive()) return;
     elements.recoveryButton.hidden = false;
-    showError(elements, `The draft could not be verified. Review the editor. Original question: ${transaction.original}`);
-    resetButton(elements.continueButton);
+    showError(elements, `The draft could not be verified. Review the editor. Your question: ${request}`);
+    resetButton(elements.continueButton, relay);
   } finally {
     transaction.dispose();
   }
@@ -253,12 +323,14 @@ async function finishComposerReplacement(
   }
   if (!result.success) {
     elements.recoveryButton.hidden = false;
-    showError(elements, `${result.message}\nOriginal question: ${transaction.original}`);
-    resetButton(elements.continueButton);
+    showError(elements, `${result.message}\nYour question: ${relay.currentRequest ?? transaction.original}`);
+    resetButton(elements.continueButton, relay);
     return;
   }
 
   elements.card.className = "card success";
+  elements.host.style.bottom = "auto";
+  elements.host.style.top = "20px";
   elements.heading.textContent = "Draft added · review and send";
   elements.detail.textContent = composed.omittedMessageCount > 0
     ? `${composed.includedMessageCount} recent messages were added; ${composed.omittedMessageCount} older messages were omitted to stay within the safe size. Review the message, then click ${PROVIDER_LABELS[relay.target]}'s Send button.`
@@ -279,9 +351,9 @@ function showError(elements: RelayElements, message: string): void {
   elements.feedback.hidden = false;
 }
 
-function resetButton(button: HTMLButtonElement): void {
+function resetButton(button: HTMLButtonElement, relay?: ReadyRelayResponse): void {
   button.disabled = false;
-  button.textContent = "Add context to draft";
+  button.textContent = relay?.currentRequest === undefined ? "Add context to draft" : "Insert prepared draft";
 }
 
 /** Keep the editor untouched until the user approves the exact omission count. */

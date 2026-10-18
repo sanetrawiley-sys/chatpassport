@@ -41,7 +41,7 @@ export default defineBackground(() => {
       const command = message as Record<string, unknown>;
       return respond(async () => {
         try {
-          if (command.action === "save") return { ok: true, pending: await createPending(command.passport, command.target) };
+          if (command.action === "save") return { ok: true, pending: await createPending(command.passport, command.target, command.currentRequest, command.approveOmissions) };
           const pending = await readPending();
           if (command.action === "get") return { ok: true, pending };
           if (command.action === "clear" && pending && pending.transferId === command.transferId) {

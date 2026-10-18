@@ -2,8 +2,8 @@ import { JSDOM } from 'jsdom';
 import { describe, expect, it } from 'vitest';
 import { beginComposerTransaction, composerToolsOnPage } from '../lib/adapters/composer';
 
-function setup(html = '<textarea>My question</textarea>') {
-  const dom = new JSDOM(html, { url: 'https://chatgpt.com/c/one', runScripts: 'outside-only' });
+function setup(html = '<textarea id="prompt-textarea">My question</textarea>') {
+  const dom = new JSDOM(`<main>${html}</main>`, { url: 'https://chatgpt.com/c/one', runScripts: 'outside-only' });
   dom.window.document.querySelectorAll<HTMLElement>('textarea,[contenteditable]').forEach((element) => {
     element.getClientRects = () => ({ length: 1 }) as DOMRectList;
   });
@@ -27,9 +27,19 @@ describe('draft preservation', () => {
     expect(tools.read(element)).toBe(expected);
   });
   it('finds a visible editor even if an earlier matching editor is hidden', () => {
-    const { dom, tools } = setup('<textarea>hidden</textarea><textarea>visible</textarea>');
+    const { dom, tools } = setup('<textarea id="prompt-textarea">hidden</textarea><textarea id="prompt-textarea">visible</textarea>');
     dom.window.document.querySelector('textarea')!.getClientRects = () => ({ length: 0 }) as DOMRectList;
     expect(tools.read(tools.find()!)).toBe('visible');
+  });
+  it('does not select an unrelated visible textarea', () => {
+    const { dom, tools } = setup('<textarea placeholder="Search">Search query</textarea>');
+    expect(tools.find()).toBeUndefined();
+    dom.window.close();
+  });
+  it('refuses two visible composer candidates', () => {
+    const { dom, tools } = setup('<textarea id="prompt-textarea">one</textarea><textarea id="prompt-textarea">two</textarea>');
+    expect(tools.find()).toBeUndefined();
+    dom.window.close();
   });
   it('writes and verifies a complete draft', async () => {
     const { begin, tools, element } = setup();

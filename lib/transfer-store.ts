@@ -2,6 +2,7 @@ import { browser } from 'wxt/browser';
 import { PENDING_TTL_MS, PROVIDER_URLS, SESSION_MAX_BYTES } from './core';
 import { passportSchema, passportSize, providerSchema } from './passport';
 import { pendingTransferSchema, type PendingTransfer } from './pending';
+import { planContinuation } from './relay';
 
 export const PENDING_KEY = 'pendingTransfer';
 export const EXPIRY_PREFIX = 'chatpassport:expire:';
@@ -40,16 +41,28 @@ export async function scheduleExpiry(pending: PendingTransfer): Promise<void> {
   await browser.alarms.create(EXPIRY_PREFIX + pending.transferId, { when: pending.savedAt + PENDING_TTL_MS });
 }
 
-export async function createPending(passportInput: unknown, targetInput: unknown): Promise<PendingTransfer> {
+export async function createPending(
+  passportInput: unknown, targetInput: unknown, currentRequestInput?: unknown, approveOmissionsInput?: unknown,
+): Promise<PendingTransfer> {
   const passport = passportSchema.parse(passportInput);
   const target = providerSchema.parse(targetInput);
   if (passport.source.provider === target) throw new Error('Choose a different destination platform.');
   if (passportSize(passport) > SESSION_MAX_BYTES) throw new Error('This transfer exceeds the 9 MB limit.');
+  if (currentRequestInput !== undefined && typeof currentRequestInput !== 'string') throw new Error('The next question is invalid.');
+  const currentRequest = currentRequestInput;
+  const plan = currentRequest === undefined ? undefined : planContinuation(passport, currentRequest);
+  if (plan?.status === 'error') throw new Error(plan.message);
+  if (plan?.status === 'composed' && plan.omittedMessageCount > 0 && approveOmissionsInput !== true) {
+    throw new Error(`Confirm the ${plan.omittedMessageCount} older messages that will be omitted before opening the draft.`);
+  }
   const previous = await readPending();
   // Bind before navigation: content scripts can never claim an unbound transfer.
   const tab = await browser.tabs.create({ url: 'about:blank' });
   if (tab.id === undefined) throw new Error('Could not create the destination tab.');
-  const pending: PendingTransfer = { passport, target, savedAt: Date.now(), transferId: crypto.randomUUID(), targetTabId: tab.id };
+  const pending: PendingTransfer = {
+    passport, target, savedAt: Date.now(), transferId: crypto.randomUUID(), targetTabId: tab.id,
+    ...(currentRequest === undefined ? {} : { currentRequest, approvedOmittedMessageCount: plan!.status === 'composed' ? plan!.omittedMessageCount : 0 }),
+  };
   try {
     await browser.storage.session.set({ [PENDING_KEY]: pending });
     await scheduleExpiry(pending);

@@ -36,6 +36,8 @@ export interface ReadyRelayResponse {
   source: Provider;
   target: Provider;
   messageCount: number;
+  currentRequest?: string;
+  approvedOmittedMessageCount?: number;
 }
 
 export interface ComposedRelayResponse {
@@ -89,7 +91,9 @@ export function isRelayResponse(value: unknown): value is RelayResponse {
       && typeof response.title === "string"
       && isProvider(response.source)
       && isProvider(response.target)
-      && typeof response.messageCount === "number";
+      && typeof response.messageCount === "number"
+      && (response.currentRequest === undefined || typeof response.currentRequest === "string")
+      && (response.approvedOmittedMessageCount === undefined || typeof response.approvedOmittedMessageCount === "number");
   }
   return response.status === "composed"
     && typeof response.transferId === "string"
@@ -129,6 +133,10 @@ export function createRelayResponse(
     source: authorized.passport.source.provider,
     target: authorized.target,
     messageCount: authorized.passport.messages.length,
+    ...(authorized.currentRequest === undefined ? {} : {
+      currentRequest: authorized.currentRequest,
+      approvedOmittedMessageCount: authorized.approvedOmittedMessageCount,
+    }),
   };
 }
 
@@ -141,7 +149,7 @@ export function composeRelayResponse(
   const authorized = authorizedPending(pending, sender);
   if (!authorized || authorized.transferId !== transferId) return { status: "none" };
 
-  const result = planContinuation(authorized.passport, currentRequest);
+  const result = planContinuation(authorized.passport, authorized.currentRequest ?? currentRequest);
   return result.status === "composed" ? { ...result, transferId } : result;
 }
 

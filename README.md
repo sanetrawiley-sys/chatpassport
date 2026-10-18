@@ -8,7 +8,7 @@
 
 <p align="center">
   Continue a conversation in ChatGPT, Claude, Gemini, or DeepSeek.
-  ChatPassport prepares the context; you review and send the draft.
+  ChatPassport prepares an editable draft; you review and send it.
 </p>
 
 <p align="center">
@@ -33,16 +33,8 @@
 ## How it works
 
 1. [Install ChatPassport](https://chromewebstore.google.com/detail/chatpassport/anmmhpfpbaafkgdhalbllhmaejeappmb). Open a conversation on a [supported website](#supported-websites), then open the side panel. If the tab was already open when you installed the extension, refresh it once.
-2. Choose a destination and a capture mode. Click **Prepare for [destination]**, review the captured message count and coverage notice, then click **Continue in [destination]**.
-3. Type your next question on the destination website. Click **Add context to draft** on the ChatPassport card, review the result, and use the website's **Send** button.
-
-<details>
-<summary>See the destination flow</summary>
-
-<p><img src="store-assets/screenshots/02-standby.png" alt="Context ready on the destination website" width="720"></p>
-<p><img src="store-assets/screenshots/03-review-and-send.png" alt="Draft ready for review and sending" width="720"></p>
-
-</details>
+2. Choose a destination and a capture mode. Click **Prepare for [destination]**. Review the coverage notice and selected message previews, write your next question, and confirm any older messages that will be omitted.
+3. Click **Open editable draft in [destination]**. ChatPassport fills an empty destination editor when it becomes ready. Review the draft and click the website's **Send** button yourself. If automatic insertion cannot complete, use **Insert prepared draft** or **Copy prepared draft** on the destination card.
 
 > [!IMPORTANT]
 > ChatPassport does not click Send. Once context is inserted into the editor, the destination website may read or sync the draft before you send it.
@@ -60,13 +52,13 @@ Websites may hide, collapse, or virtualize history. A scan that reaches both pag
 
 ChatPassport transfers message order and roles, plus the text, code, links, tables, and math it can read from the page. It keeps Markdown formatting where available. Images become text placeholders; image and file contents, artifacts, citation cards, and hidden reasoning are not included.
 
-Before continuing, **More options** lets you choose all captured messages or the latest 20, 50, or 100. A destination draft can contain up to **48,000 characters**, including your next question. If older messages will be omitted, ChatPassport shows the count and asks you to confirm before changing the editor. It never cuts a message in half or summarizes it with AI.
+Before continuing, choose all captured messages or the latest 20, 50, or 100. A destination draft can contain up to **48,000 characters**, including your next question. ChatPassport shows the exact number of older messages that will be omitted and asks you to confirm before opening the draft. It never cuts a message in half or summarizes it with AI.
 
 You can save the full captured preview as Markdown or a portable `.chatpassport.json` file, and import saved JSON later. JSON files have a **25 MiB** limit; pending transfers have a separate **9 MB** limit. See the [file format](docs/format.md) for compatibility details.
 
 ## Privacy
 
-Capture begins only when you click **Prepare for [destination]**. ChatPassport needs no account or API key and has no developer-operated server, analytics, or tracking. A pending transfer is held in `chrome.storage.session`, bound to one destination tab, and expires after one hour.
+Capture begins only when you click **Prepare for [destination]**. ChatPassport needs no account or API key and has no developer-operated server, analytics, or tracking. The selected conversation and your next question are held in `chrome.storage.session` for one pending transfer, bound to one destination tab, and expire after one hour.
 
 Loading history may trigger the source website's normal requests. After insertion, the destination website handles the draft under its own policies. Read the [privacy policy](PRIVACY.md) for details.
 

@@ -15,7 +15,7 @@ const composed = {
   includedMessageCount: 1, omittedMessageCount: 0, characterCount: 20,
 };
 
-async function setup() {
+async function setup(initialDraft = 'My question') {
   const dom = new JSDOM('<html><body></body></html>', { url: 'https://claude.ai/new' });
   vi.stubGlobal('document', dom.window.document);
   vi.stubGlobal('defineContentScript', (configuration: unknown) => configuration);
@@ -24,7 +24,7 @@ async function setup() {
     return attachShadow.call(this, { mode: 'open' });
   };
   const transaction = {
-    original: 'My question', dispose: vi.fn(),
+    original: initialDraft, dispose: vi.fn(),
     replace: vi.fn(async () => ({ success: true, message: 'Draft ready.' })),
   };
   mocks.begin.mockReturnValue(transaction);
@@ -32,13 +32,39 @@ async function setup() {
   script.default.main({} as NonNullable<Parameters<typeof script.default.main>[0]>);
   await vi.waitFor(() => expect(dom.window.document.getElementById('chatpassport-relay-status')).not.toBeNull());
   const host = dom.window.document.getElementById('chatpassport-relay-status')!;
-  const [continueButton, dismissButton] = Array.from(host.shadowRoot!.querySelectorAll('button'));
+  const buttons = Array.from(host.shadowRoot!.querySelectorAll('button'));
+  const continueButton = buttons.find((button) => button.textContent === 'Add context to draft' || button.textContent === 'Insert prepared draft');
+  const dismissButton = buttons.find((button) => button.textContent === 'Dismiss');
   return { dom, host, continueButton: continueButton!, dismissButton: dismissButton!, transaction };
 }
 
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.clearAllMocks();
+});
+
+describe('prepared draft on arrival', () => {
+  const prepared: ReadyRelayResponse = { ...ready, currentRequest: 'Prepared question', approvedOmittedMessageCount: 0 };
+  it('inserts into an empty editor automatically and leaves Send to the website', async () => {
+    mocks.sendMessage.mockImplementation(({ type }: { type: string }) => {
+      if (type === GET_PENDING_RELAY) return Promise.resolve(prepared);
+      if (type === COMPOSE_PENDING_RELAY) return Promise.resolve({ ...composed, text: 'Context\n\nPrepared question' });
+      return Promise.resolve(true);
+    });
+    const { dom, host, transaction } = await setup('');
+    await vi.waitFor(() => expect(transaction.replace).toHaveBeenCalledWith('Context\n\nPrepared question'));
+    expect(host.shadowRoot!.textContent).toContain('review and send');
+    expect(mocks.sendMessage).toHaveBeenCalledWith({ type: COMPLETE_PENDING_RELAY, transferId: prepared.transferId });
+    dom.window.close();
+  });
+  it('does not overwrite an existing destination draft', async () => {
+    mocks.sendMessage.mockResolvedValue(prepared);
+    const { dom, host, continueButton, transaction } = await setup('Existing text');
+    await vi.waitFor(() => expect(host.shadowRoot!.textContent).toContain('already has a draft'));
+    expect(transaction.replace).not.toHaveBeenCalled();
+    expect(continueButton.disabled).toBe(false);
+    dom.window.close();
+  });
 });
 
 describe('destination relay cancellation', () => {
