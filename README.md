@@ -1,86 +1,74 @@
-<div align="center">
+<p align="center">
+  <img src="public/icons/icon-128.png" alt="ChatPassport" width="64">
+</p>
 
-# ChatPassport
+<h1 align="center">ChatPassport</h1>
 
-### Switch assistants. Keep your context.
+<p align="center"><strong>Switch assistants. Keep your context.</strong></p>
 
-Continue a conversation in ChatGPT, Claude, Gemini, or DeepSeek without rebuilding its context by hand. ChatPassport reads the conversation you choose, prepares a draft in another assistant, and leaves the final review and Send click to you.
+<p align="center">
+  Continue a conversation in ChatGPT, Claude, Gemini, or DeepSeek.
+  ChatPassport prepares the context; you review and send the draft.
+</p>
 
-[![Install from the Chrome Web Store](https://img.shields.io/badge/Install-Chrome%20Web%20Store-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/chatpassport/anmmhpfpbaafkgdhalbllhmaejeappmb)
+<p align="center">
+  <a href="https://chromewebstore.google.com/detail/chatpassport/anmmhpfpbaafkgdhalbllhmaejeappmb">
+    <img src="https://img.shields.io/badge/Install-Chrome%20Web%20Store-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Install from the Chrome Web Store">
+  </a>
+</p>
 
-[![GitHub Stars](assets/star-badge.svg)](https://github.com/sxwangsxwang1/chatpassport/stargazers)
-![Chrome Manifest V3](https://img.shields.io/badge/Chrome-Manifest%20V3-4285F4?style=flat-square&logo=googlechrome&logoColor=white)
-![No ChatPassport account](https://img.shields.io/badge/account-not%20required-176044?style=flat-square)
-![No API key](https://img.shields.io/badge/API%20key-not%20required-C6923A?style=flat-square)
+<p align="center">
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#capture-modes">Capture modes</a> ·
+  <a href="#privacy">Privacy</a> ·
+  <a href="#build-from-source">Build from source</a>
+</p>
 
-[Get started](#get-started) · [Capture modes](#choose-how-much-to-read) · [What transfers](#what-transfers) · [Privacy](#privacy-and-control) · [Build from source](#build-from-source)
+<p align="center">
+  <img src="store-assets/screenshots/01-capture.png" alt="ChatPassport capture preview with demonstration data" width="800">
+</p>
 
-</div>
+<p align="center"><sub>Screenshots show demonstration conversations.</sub></p>
 
-![ChatPassport capture preview with demonstration data](store-assets/screenshots/01-capture.png)
+## How it works
 
-*The screenshots use demonstration conversations. ChatPassport works alongside the supported websites; it does not replace their accounts or interfaces.*
+1. [Install ChatPassport](https://chromewebstore.google.com/detail/chatpassport/anmmhpfpbaafkgdhalbllhmaejeappmb). Open a conversation on a [supported website](#supported-websites), then open the side panel. If the tab was already open when you installed the extension, refresh it once.
+2. Choose a destination and a capture mode. Click **Prepare for [destination]**, review the captured message count and coverage notice, then click **Continue in [destination]**.
+3. Type your next question on the destination website. Click **Add context to draft** on the ChatPassport card, review the result, and use the website's **Send** button.
 
-## Why use it?
+<details>
+<summary>See the destination flow</summary>
 
-When a chat gets long, you hit a limit, or you want a second assistant's perspective, copying the conversation message by message is tedious. ChatPassport carries the text and code it can read into a new draft, then lets you add your next question before anything is sent.
+<p><img src="store-assets/screenshots/02-standby.png" alt="Context ready on the destination website" width="720"></p>
+<p><img src="store-assets/screenshots/03-review-and-send.png" alt="Draft ready for review and sending" width="720"></p>
 
-- **Choose your destination first.** Move between ChatGPT, Claude, Gemini, and DeepSeek.
-- **Choose your capture depth.** Use **Quick** for currently loaded messages or **Load history** to scroll for older messages.
-- **See what was captured.** Review the message count, coverage notice, and estimated draft fit before continuing.
-- **Keep control of the draft.** If older messages must be left out, ChatPassport asks before inserting anything. You review and send the result yourself.
-- **Keep a portable copy.** Export Markdown or `.chatpassport.json`, and import saved JSON later.
+</details>
 
-ChatPassport runs without a ChatPassport account, API key, developer-operated server, analytics, or tracking.
+> [!IMPORTANT]
+> ChatPassport does not click Send. Once context is inserted into the editor, the destination website may read or sync the draft before you send it.
 
-## Get started
+## Capture modes
 
-The steps below describe ChatPassport **0.1.6**. If your installed extension does not show Quick and Load history, check its version in `chrome://extensions`; Web Store updates can appear after review.
-
-1. [Install ChatPassport from the Chrome Web Store](https://chromewebstore.google.com/detail/chatpassport/anmmhpfpbaafkgdhalbllhmaejeappmb). Open a conversation on a supported website and open the ChatPassport side panel. If the website was already open during installation, refresh that tab once.
-2. Choose another assistant and a capture mode, then click **Prepare for [destination]**. Check the captured messages and coverage notice. Click **Continue in [destination]** to open the destination tab.
-3. Type your next question in the destination's normal editor. On the ChatPassport card, click **Add context to draft**. Confirm any proposed omissions, review the resulting draft, and use the website's own Send button.
-
-| Write your next question | Review and send |
-| :---: | :---: |
-| ![Context ready in destination](store-assets/screenshots/02-standby.png) | ![Draft ready for review](store-assets/screenshots/03-review-and-send.png) |
-
-ChatPassport never clicks Send for you. Once context is inserted into the destination editor, that website can read or sync the draft even before you send it.
-
-## Choose how much to read
-
-| Mode | What it does | When to use it |
-| --- | --- | --- |
-| **Quick** | Reads messages currently rendered on the page. It does not scroll or wait for history, and marks the result as partial. | You need the visible recent exchange quickly. |
-| **Load history** (default) | Scrolls to collect older rendered messages, then restores the page position. It can take up to two minutes. | You want more of a long conversation. |
-
-While Load history is running, **Stop and use collected messages** keeps what has been found so far. Both modes report capture coverage. Websites may hide, virtualize, collapse, or load history in ways the extension cannot fully observe; a successful scan does not guarantee every past message was captured. Loading history may also cause the source website's normal network requests.
-
-After capture, **More options** lets you transfer all captured messages or only the latest 20, 50, or 100. It also contains JSON/Markdown export and JSON import. Exports contain the captured preview, regardless of the range selected for transfer.
-
-## What transfers
-
-| Included | Not included |
+| Mode | What it reads |
 | --- | --- |
-| Conversation text as Markdown (headings, lists, links, tables, fenced code blocks with their language, TeX math), message order and roles, and `[image: description]` or `[image]` placeholders for non-decorative images | Image and file contents, citation cards, artifacts, hidden reasoning, or messages that the page did not expose |
+| **Quick** | Messages currently loaded on the page. No scrolling; coverage is marked partial. |
+| **Load history** (default) | Scrolls to collect older rendered messages, then restores your position. It can take up to two minutes. You can stop and keep the messages collected so far. |
 
-The destination draft has a **48,000-character budget**, including your next question. ChatPassport estimates how many complete recent messages fit before you continue, then recalculates using the question you actually typed. If it must omit older messages, it shows the counts and asks you to confirm before changing the editor. It does not silently cut a message in half or summarize it with AI. A destination model may have a smaller context limit.
+Websites may hide, collapse, or virtualize history. A scan that reaches both page boundaries still cannot guarantee that every past message was captured.
 
-If the website rejects an insertion, ChatPassport shows the original question and offers **Copy original question** for recovery. **Copy saved context** in the side panel provides a manual fallback for a pending transfer within its copy-size limit.
+## What moves
 
-## Save or import a conversation
+ChatPassport transfers message order and roles, plus the text, code, links, tables, and math it can read from the page. It keeps Markdown formatting where available. Images become text placeholders; image and file contents, artifacts, citation cards, and hidden reasoning are not included.
 
-In **More options**, choose **Save JSON** for a portable `.chatpassport.json` file or **Save Markdown** for a readable `.chatpassport.md` file. To reuse a saved conversation, choose **Import saved conversation (.chatpassport.json)** and then a destination.
+Before continuing, **More options** lets you choose all captured messages or the latest 20, 50, or 100. A destination draft can contain up to **48,000 characters**, including your next question. If older messages will be omitted, ChatPassport shows the count and asks you to confirm before changing the editor. It never cuts a message in half or summarizes it with AI.
 
-Files are processed locally. JSON capture, export, and import have a 25 MiB limit; oversized captures retain only complete messages that fit and show a partial-coverage warning. See the [JSON format](docs/format.md) for the schema and compatibility notes.
+You can save the full captured preview as Markdown or a portable `.chatpassport.json` file, and import saved JSON later. JSON files have a **25 MiB** limit; pending transfers have a separate **9 MB** limit. See the [file format](docs/format.md) for compatibility details.
 
-## Privacy and control
+## Privacy
 
-ChatPassport reads a conversation only after you choose **Prepare for [destination]**. It requests access only to the supported assistant domains and uses Chrome's `scripting`, `storage`, `sidePanel`, and `alarms` permissions for capture, a temporary transfer, the interface, and expiry cleanup.
+Capture begins only when you click **Prepare for [destination]**. ChatPassport needs no account or API key and has no developer-operated server, analytics, or tracking. A pending transfer is held in `chrome.storage.session`, bound to one destination tab, and expires after one hour.
 
-One pending transfer is stored in `chrome.storage.session`, bound to the destination tab, and becomes inaccessible after one hour. Expiry is checked on access; cleanup can be delayed while Chrome is asleep or stopped. Exported files remain wherever your browser saves them until you delete them.
-
-No conversation or draft is sent to a ChatPassport server. The source and destination websites handle their own pages and requests under their own policies. Read the full [privacy policy](PRIVACY.md).
+Loading history may trigger the source website's normal requests. After insertion, the destination website handles the draft under its own policies. Read the [privacy policy](PRIVACY.md) for details.
 
 ## Supported websites
 
@@ -91,27 +79,18 @@ No conversation or draft is sent to a ChatPassport server. The source and destin
 | Gemini | `gemini.google.com` |
 | DeepSeek | `chat.deepseek.com` |
 
-ChatPassport needs a browser that supports Chrome Manifest V3 and the side panel. You still need access to the assistant websites themselves. Their page layouts can change; if capture or insertion stops working, [report the affected website and behavior](https://github.com/sxwangsxwang1/chatpassport/issues) without including private conversation text.
+A browser with Chrome Manifest V3 and side panel support is required. If a website layout change breaks capture or insertion, [open an issue](https://github.com/sxwangsxwang1/chatpassport/issues) with the website and steps to reproduce. Remove private conversation text first.
 
 ## Build from source
 
-Requires Node.js 20+ and pnpm.
+Use Node.js 22 and pnpm. The repository pins pnpm 11.19.0.
 
 ```bash
 pnpm install
 pnpm check
-pnpm release:chrome
 ```
 
-`pnpm check` runs type checking, tests, and a production build. `pnpm release:chrome` also creates the upload-ready ZIP in `release/`. For a local browser install, open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**, and select `.output/chrome-mv3` after building. The repository root is source code, not an unpacked extension.
-
-## Contributing
-
-Issues and pull requests are welcome. For a compatibility report, include the assistant, the action you took, the result you saw, and any Chrome extension errors, with personal conversation content removed. Run `pnpm check` before opening a pull request.
-
-## License
-
-ChatPassport is released under the [MIT License](LICENSE).
+`pnpm check` runs type checking, tests, and a production build. To try the extension locally, open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**, and select `.output/chrome-mv3`. Use `pnpm dev` for development or `pnpm release:chrome` to create an upload ZIP in `release/`.
 
 ## Star history
 
