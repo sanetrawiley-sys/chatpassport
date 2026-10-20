@@ -33,7 +33,7 @@
 ## How it works
 
 1. [Install ChatPassport](https://chromewebstore.google.com/detail/chatpassport/anmmhpfpbaafkgdhalbllhmaejeappmb). Open a conversation on a [supported website](#supported-websites), then open the side panel. If the tab was already open when you installed the extension, refresh it once.
-2. Choose a destination and a capture mode. Click **Prepare for [destination]**. Review the coverage notice and selected message previews, write your next question, and confirm any older messages that will be omitted.
+2. Choose a destination and a capture mode. You can also choose the current assistant to start a new chat there. Click **Prepare for [destination]**. Review or search the full captured conversation, choose individual messages if needed, write your next question, and confirm any older selected messages that will be omitted.
 3. Click **Open editable draft in [destination]**. ChatPassport fills an empty destination editor when it becomes ready. Review the draft and click the website's **Send** button yourself. If automatic insertion cannot complete, use **Insert prepared draft** or **Copy prepared draft** on the destination card.
 
 > [!IMPORTANT]
@@ -52,9 +52,11 @@ Websites may hide, collapse, or virtualize history. A scan that reaches both pag
 
 ChatPassport transfers message order and roles, plus the text, code, links, tables, and math it can read from the page. It keeps Markdown formatting where available. Images become text placeholders; image and file contents, artifacts, citation cards, and hidden reasoning are not included.
 
-Before continuing, choose all captured messages or the latest 20, 50, or 100. A destination draft can contain up to **48,000 characters**, including your next question. ChatPassport shows the exact number of older messages that will be omitted and asks you to confirm before opening the draft. It never cuts a message in half or summarizes it with AI.
+Before continuing, choose all captured messages, the latest 20, 50, or 100, or individual messages. A destination draft can contain up to **48,000 characters**, including your next question. ChatPassport shows the exact number of older selected messages that will be omitted and asks you to confirm before opening the draft. It never cuts a message in half or summarizes it with AI.
 
 You can save the full captured preview as Markdown or a portable `.chatpassport.json` file, and import saved JSON later. JSON files have a **25 MiB** limit; pending transfers have a separate **9 MB** limit. See the [file format](docs/format.md) for compatibility details.
+
+When a draft omits messages, you can download the complete captured transcript as Markdown and attach it yourself on the destination website. ChatPassport does not upload or verify that attachment; the draft still contains only the included messages.
 
 ## Privacy
 

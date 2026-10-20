@@ -28,15 +28,16 @@ ChatPassport carries text and code between ChatGPT, Claude, Gemini, and DeepSeek
 
 KEEP YOUR WORK MOVING
 
-• Switch assistants without manually rebuilding the conversation.
+• Switch assistants or open a fresh chat on the current assistant without manually rebuilding the conversation.
 • Choose Quick to read currently loaded messages, or Load history to collect older messages by scrolling.
-• Review selected message previews, write your next question, and confirm the exact number of older messages that will be omitted before opening the destination.
+• Search and review the full capture, choose individual messages, write your next question, and confirm the exact number of older selected messages that will be omitted before opening the destination.
+• If messages are omitted, download the full captured transcript as Markdown to attach yourself at the destination.
 • Keep a portable copy as Markdown or ChatPassport JSON. Import saved JSON when you need it.
 
 THREE SIMPLE STEPS
 
 1. Open a supported conversation, choose a destination and click Prepare.
-2. Review the capture, choose a message range, write your next question, and confirm any omissions.
+2. Review the capture, choose a message range or individual messages, write your next question, and confirm any omissions.
 3. Open an editable draft in your chosen assistant. ChatPassport fills an empty message box when ready. Review the draft and click Send yourself. Manual insert and copy options are available if needed.
 
 LOCAL PROCESSING, YOUR CONTROL
@@ -49,7 +50,7 @@ WHAT IS INCLUDED
 
 Text as Markdown, including tables, lists, links, fenced code blocks and TeX math. Non-decorative images appear as [image: description] or [image] placeholders; image and attachment contents, citation cards, artifacts and hidden reasoning are not transferred. Quick capture includes only currently rendered messages; history capture is limited to two minutes and cannot guarantee hidden, collapsed or server-side history. Coverage and any uncertainty are shown in the panel.
 
-Drafts have a 48,000-character budget including your next question (up to 8,000 characters). Oversized drafts retain complete recent messages, with explicit approval for omissions. This is not AI summarization; destination models may impose smaller limits. Captured JSON files have a 25 MiB limit.
+Drafts have a 48,000-character budget including your next question (up to 8,000 characters). Oversized drafts retain complete recent selected messages, with explicit approval for omissions. This is not AI summarization; destination models may impose smaller limits. Captured JSON files have a 25 MiB limit. ChatPassport does not upload or verify downloaded transcript attachments.
 
 ChatPassport is not affiliated with OpenAI, Anthropic, Google, or DeepSeek.
 
@@ -64,9 +65,9 @@ These links work publicly only after the repository is public. If it remains pri
 ## Reviewer test instructions
 
 1. Sign in to a supported AI website and open a conversation with at least two text messages.
-2. Open ChatPassport, choose another assistant, and select Quick or Load history.
-3. Click Prepare for the chosen assistant. Check the captured count, coverage notice, and selected message previews.
-4. Choose a message range, enter a next question, and confirm any displayed omission count.
+2. Open ChatPassport, choose another assistant or a fresh chat on the current assistant, and select Quick or Load history.
+3. Click Prepare for the chosen assistant. Check the captured count, coverage notice, and full searchable message preview.
+4. Choose a message range or individual messages, enter a next question, and confirm any displayed omission count. When the draft omits messages, download the full transcript if you want to attach it manually.
 5. Click Open editable draft. The destination tab should fill its empty editor automatically. If it cannot, try Insert prepared draft or Copy prepared draft on the card.
 6. Review the inserted draft. Confirm that ChatPassport did not click Send.
 7. More options exposes JSON/Markdown export and JSON import.

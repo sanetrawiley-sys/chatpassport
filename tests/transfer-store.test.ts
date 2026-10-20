@@ -56,6 +56,13 @@ describe('pending transfer lifecycle', () => {
     const second = await createPending(passport, 'claude');
     expect(second.transferId).not.toBe(pending.transferId);
   });
+  it('can open a new chat on the source platform without reusing the source tab', async () => {
+    const pending = await createPending(passport, 'chatgpt', 'Continue here');
+    expect(pending.target).toBe('chatgpt');
+    expect(pending.targetTabId).toBe(42);
+    expect(mocks.createTab).toHaveBeenCalledWith({ url: 'about:blank' });
+    expect(mocks.updateTab).toHaveBeenCalledWith(42, { url: 'https://chatgpt.com/' });
+  });
   it('expires at the one-hour boundary, even without an alarm firing', async () => {
     const pending = await createPending(passport, 'claude');
     stored[PENDING_KEY] = { ...pending, savedAt: Date.now() - 3_600_000 };

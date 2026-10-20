@@ -65,14 +65,14 @@ describe('independent preview and transfer state', () => {
     expect(copied).toContain('Message-0');
     expect(copied).toContain('Message-49');
   });
-  it('keeps imported source and selected destination different on the source platform', async () => {
+  it('offers a new chat on the imported source platform', async () => {
     await act(async () => {
       const input = document.querySelector('input[type="file"]')!;
       Object.defineProperty(input, 'files', { value: [{ size: 100, name: 'test.json', text: async () => JSON.stringify(passport) }] });
       input.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
     });
     expect(document.querySelector('.provider.selected')?.textContent).toBe('Claude');
-    expect(Array.from(document.querySelectorAll('.provider')).some((node) => node.textContent === 'ChatGPT')).toBe(false);
+    expect(button('ChatGPT · new chat')).toBeTruthy();
   });
   it('does not copy expired or replaced pending context', async () => {
     mocks.get.mockResolvedValue(null);
@@ -115,10 +115,51 @@ describe('guided capture and capacity estimates', () => {
     await click('Open editable draft in Claude');
     expect(mocks.save).toHaveBeenCalledWith(passport, 'claude', 'What is the next step?', false);
   });
-  it('does not offer the current source as a destination before reading', async () => {
+  it('keeps a same-platform new-chat choice through capture and handoff', async () => {
+    await click('ChatGPT · new chat');
+    await click('Prepare for ChatGPT');
+    await writeQuestion('Continue in a fresh chat');
+    await click('Open editable draft in ChatGPT');
+    expect(mocks.save).toHaveBeenCalledWith(passport, 'chatgpt', 'Continue in a fresh chat', false);
+  });
+  it('offers the current source as a new-chat destination before reading', async () => {
     mocks.tab.mockResolvedValue({ id: 2, url: 'https://claude.ai/new', provider: 'claude' });
     await act(async () => { for (const [listener] of mocks.add.mock.calls) listener(); });
-    expect(Array.from(document.querySelectorAll('.provider')).map((node) => node.textContent)).not.toContain('Claude');
-    expect(document.querySelector('.provider.selected')?.textContent).toBe('ChatGPT');
+    expect(button('Claude · new chat')).toBeTruthy();
+    expect(document.querySelector('.provider.selected')?.textContent).toBe('Claude · new chat');
+  });
+  it('searches full messages and transfers only checked messages', async () => {
+    await click('Prepare for Claude');
+    await act(async () => {
+      const select = document.querySelector<HTMLSelectElement>('#message-limit')!;
+      select.value = 'custom';
+      select.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+    });
+    await click('Clear selection');
+    await writeQuestion('Continue');
+    expect(button('Open editable draft in Claude').disabled).toBe(true);
+    await act(async () => {
+      const search = document.querySelector<HTMLInputElement>('#message-search')!;
+      Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, 'value')!.set!.call(search, 'Message-37');
+      search.dispatchEvent(new dom.window.InputEvent('input', { bubbles: true, data: 'Message-37', inputType: 'insertText' }));
+      search.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+    });
+    expect(document.querySelectorAll('.message-preview li')).toHaveLength(1);
+    expect(document.querySelector('.message-preview li')?.textContent).toContain('Message-37');
+    await act(async () => { document.querySelector<HTMLInputElement>('.message-preview li input')!.click(); });
+    await click('Open editable draft in Claude');
+    expect(mocks.save).toHaveBeenCalledWith(
+      expect.objectContaining({ messages: [passport.messages[37]] }), 'claude', 'Continue', false,
+    );
+  });
+  it('shows later full messages and a complete transcript option when the draft omits history', async () => {
+    const large = { ...passport, messages: passport.messages.map((message) => ({ ...message, content: [{ type: 'text' as const, text: `Message-${message.id} ${'x'.repeat(3000)}` }] })) };
+    mocks.extract.mockResolvedValue(large);
+    await click('Prepare for Claude');
+    expect(document.querySelectorAll('.message-preview li')).toHaveLength(30);
+    await click('Show next 20 messages');
+    expect(document.querySelectorAll('.message-preview li')).toHaveLength(50);
+    await writeQuestion('Continue');
+    expect(button('Download complete transcript to attach')).toBeTruthy();
   });
 });

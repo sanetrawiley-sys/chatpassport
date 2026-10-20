@@ -27,7 +27,8 @@ import {
 } from "../../lib/passport";
 import { planContinuation, RELAY_MAX_DRAFT_CHARS, RELAY_MAX_REQUEST_CHARS } from "../../lib/relay";
 
-type MessageLimit = "all" | "20" | "50" | "100";
+type MessageLimit = "all" | "20" | "50" | "100" | "custom";
+const PREVIEW_PAGE_SIZE = 30;
 
 function triggerDownload(contents: string, filename: string, type: string): void {
   const url = URL.createObjectURL(new Blob([contents], { type }));
@@ -54,6 +55,9 @@ export default function App() {
   const [pending, setPending] = useState<PendingTransfer | null>(null);
   const [target, setTarget] = useState<Provider>("claude");
   const [limit, setLimit] = useState<MessageLimit>("all");
+  const [selectedIndexes, setSelectedIndexes] = useState<Set<number>>(new Set());
+  const [messageSearch, setMessageSearch] = useState("");
+  const [visibleCount, setVisibleCount] = useState(PREVIEW_PAGE_SIZE);
   const [mode, setMode] = useState<"loaded" | "history">("history");
   const [nextQuestion, setNextQuestion] = useState("");
   const [omissionsApproved, setOmissionsApproved] = useState(false);
@@ -63,9 +67,13 @@ export default function App() {
 
   const previewSize = useMemo(() => passport ? passportSize(passport) : 0, [passport]);
   const transferablePassport = useMemo(() => {
-    if (!passport || limit === "all") return passport;
-    return { ...passport, messages: passport.messages.slice(-Number(limit)) };
-  }, [passport, limit]);
+    if (!passport) return null;
+    if (limit === "all") return passport;
+    const messages = limit === "custom"
+      ? passport.messages.filter((_, index) => selectedIndexes.has(index))
+      : passport.messages.slice(-Number(limit));
+    return messages.length ? { ...passport, messages } : null;
+  }, [passport, limit, selectedIndexes]);
   const transferableSize = useMemo(
     () => transferablePassport ? passportSize(transferablePassport) : 0,
     [transferablePassport],
@@ -75,17 +83,13 @@ export default function App() {
     [transferablePassport, nextQuestion],
   );
   const previewMessages = useMemo(() => {
-    if (!transferablePassport) return [];
-    const messages = transferablePassport.messages;
-    const indexes = messages.length <= 4
-      ? messages.map((_, index) => index)
-      : [0, messages.length - 3, messages.length - 2, messages.length - 1];
-    return indexes.map((index) => {
-      const message = messages[index]!;
+    if (!passport) return [];
+    const query = messageSearch.trim().toLocaleLowerCase();
+    return passport.messages.flatMap((message, index) => {
       const text = message.content.map((part) => part.text).join("\n");
-      return { index, message, excerpt: text.slice(0, 280) + (text.length > 280 ? "…" : "") };
+      return !query || text.toLocaleLowerCase().includes(query) ? [{ index, message, text }] : [];
     });
-  }, [transferablePassport]);
+  }, [passport, messageSearch]);
   const context = useMemo(() => {
     return pending ? buildHandoffPrompt(pending.passport) : "";
   }, [pending]);
@@ -140,10 +144,13 @@ export default function App() {
         onProgress: (count, phase) => showNotice(`${phase}… ${count} messages collected. You can stop and keep partial results.`),
       });
       setPassport(extracted);
+      setLimit("all");
+      setSelectedIndexes(new Set());
+      setMessageSearch("");
+      setVisibleCount(PREVIEW_PAGE_SIZE);
       setNextQuestion("");
       setOmissionsApproved(false);
       setPreviewOrigin("page");
-      setTarget((current) => current !== extracted.source.provider ? current : PROVIDERS.find((provider) => provider !== extracted.source.provider)!);
       showNotice(`Captured ${extracted.messages.length} messages. ${extracted.capture?.reason}`, extracted.capture?.status === "partial" ? "info" : "success");
     } catch (error) {
       showNotice(errorMessage(error), "error");
@@ -216,7 +223,9 @@ export default function App() {
       setOmissionsApproved(false);
       setPreviewOrigin("file");
       setLimit("all");
-      setTarget((current) => current !== imported.source.provider ? current : PROVIDERS.find((provider) => provider !== imported.source.provider)!);
+      setSelectedIndexes(new Set());
+      setMessageSearch("");
+      setVisibleCount(PREVIEW_PAGE_SIZE);
       showNotice(`Imported ${imported.messages.length} messages from ${file.name}.`, "success");
     } catch (error) {
       showNotice(`Could not import this file: ${errorMessage(error)}`, "error");
@@ -228,7 +237,21 @@ export default function App() {
 
   const sourceLabel = passport ? PROVIDER_LABELS[passport.source.provider] : null;
   const sourceProvider = passport?.source.provider ?? activeProvider;
-  const selectedTarget = target === sourceProvider ? PROVIDERS.find((provider) => provider !== sourceProvider)! : target;
+  const selectedTarget = target;
+  const selectedMessageCount = transferablePassport?.messages.length ?? 0;
+  function isSelected(index: number): boolean {
+    if (limit === "all") return true;
+    if (limit === "custom") return selectedIndexes.has(index);
+    return index >= (passport?.messages.length ?? 0) - Number(limit);
+  }
+  function selectMessage(index: number, checked: boolean) {
+    setSelectedIndexes((current) => {
+      const next = new Set(current);
+      if (checked) next.add(index); else next.delete(index);
+      return next;
+    });
+    setOmissionsApproved(false);
+  }
   const currentLabel = activeProvider ? PROVIDER_LABELS[activeProvider] : "Unsupported page";
 
   return (
@@ -267,10 +290,10 @@ export default function App() {
         <div className="eyebrow">Keep the conversation going</div>
         <h2>Where would you like to continue?</h2>
         <div className="provider-grid" aria-label="Destination assistant">
-          {PROVIDERS.filter((provider) => provider !== sourceProvider).map((provider) => (
+          {PROVIDERS.map((provider) => (
             <button key={provider} disabled={busy} aria-pressed={selectedTarget === provider}
               className={selectedTarget === provider ? "provider selected" : "provider"}
-              onClick={() => setTarget(provider)}>{PROVIDER_LABELS[provider]}</button>
+              onClick={() => setTarget(provider)}>{PROVIDER_LABELS[provider]}{provider === sourceProvider ? " · new chat" : ""}</button>
           ))}
         </div>
         {!activeProvider && !passport && <p>Open a conversation on ChatGPT, Claude, Gemini, or DeepSeek to begin. You can also import a saved file below.</p>}
@@ -299,28 +322,45 @@ export default function App() {
               ? passport.capture?.reason ?? "History completeness has not been verified."
               : "Only messages in the imported file are included; source history may be incomplete."}
           </p>
-          <p>{transferablePassport?.messages.length} messages selected{limit !== "all" ? `; ${passport.messages.length - (transferablePassport?.messages.length ?? 0)} older messages excluded by your range.` : "."}</p>
+          <p>{selectedMessageCount} of {passport.messages.length} messages selected{limit !== "all" ? `; ${passport.messages.length - selectedMessageCount} excluded by your selection.` : "."}</p>
           <label className="field-label" htmlFor="message-limit">Messages to transfer</label>
           <select id="message-limit" disabled={busy} value={limit} onChange={(event) => {
-            setLimit(event.target.value as MessageLimit);
+            const nextLimit = event.target.value as MessageLimit;
+            if (nextLimit === "custom" && limit !== "custom") {
+              const start = limit === "all" ? 0 : Math.max(0, passport.messages.length - Number(limit));
+              setSelectedIndexes(new Set(passport.messages.map((_, index) => index).filter((index) => index >= start)));
+            }
+            setLimit(nextLimit);
             setOmissionsApproved(false);
           }}>
             <option value="all">All captured messages</option>
             <option value="100">Latest 100 available messages</option>
             <option value="50">Latest 50 available messages</option>
             <option value="20">Latest 20 available messages</option>
+            <option value="custom">Choose individual messages</option>
           </select>
+          {limit === "custom" && <div className="selection-actions">
+            <button className="text-button" disabled={busy} onClick={() => { setSelectedIndexes(new Set(passport.messages.map((_, index) => index))); setOmissionsApproved(false); }}>Select all</button>
+            <button className="text-button" disabled={busy} onClick={() => { setSelectedIndexes(new Set()); setOmissionsApproved(false); }}>Clear selection</button>
+          </div>}
           <details className="message-preview">
-            <summary>Review selected messages</summary>
+            <summary>Review all messages and choose what to transfer</summary>
+            <label className="field-label" htmlFor="message-search">Find a message</label>
+            <input id="message-search" type="search" value={messageSearch} onChange={(event) => { setMessageSearch(event.target.value); setVisibleCount(PREVIEW_PAGE_SIZE); }} placeholder="Search conversation text" />
+            <p>{previewMessages.length} matching messages. Showing full text in capture order.</p>
             <ol>
-              {previewMessages.map(({ index, message, excerpt }, previewIndex) => <li key={`${index}-${message.id}`}>
-                {previewIndex === 1 && index > 1 && <span className="preview-gap">… {index - 1} messages between these previews …</span>}
-                <strong>{message.role === "assistant" ? "Assistant" : message.role === "user" ? "You" : "System"} · {index + 1}</strong>
-                <p>{excerpt}</p>
+              {previewMessages.slice(0, visibleCount).map(({ index, message, text }) => <li key={`${index}-${message.id}`}>
+                <label className="message-heading">
+                  <input type="checkbox" checked={isSelected(index)} disabled={busy || limit !== "custom"} onChange={(event) => selectMessage(index, event.target.checked)} />
+                  <strong>{message.role === "assistant" ? "Assistant" : message.role === "user" ? "You" : "System"} · {index + 1}</strong>
+                </label>
+                <p>{text}</p>
               </li>)}
             </ol>
-            <p>Showing the first and latest messages. Save Markdown under More options to inspect the full capture.</p>
+            {visibleCount < previewMessages.length && <button className="secondary preview-more" onClick={() => setVisibleCount((count) => count + PREVIEW_PAGE_SIZE)}>Show next {Math.min(PREVIEW_PAGE_SIZE, previewMessages.length - visibleCount)} messages</button>}
+            {limit !== "custom" && <p>Choose “Choose individual messages” above to change the checked messages.</p>}
           </details>
+          {selectedMessageCount === 0 && <p className="warning">Select at least one message to continue.</p>}
           <label className="field-label" htmlFor="next-question">Your next question</label>
           <textarea id="next-question" value={nextQuestion} maxLength={RELAY_MAX_REQUEST_CHARS} disabled={busy}
             placeholder="What would you like to ask next?" onChange={(event) => {
@@ -338,6 +378,11 @@ export default function App() {
             <input type="checkbox" checked={omissionsApproved} onChange={(event) => setOmissionsApproved(event.target.checked)} />
             <span>I understand that {plan.omittedMessageCount} older messages will be omitted.</span>
           </label>}
+          {plan?.status === "composed" && (plan.omittedMessageCount > 0 || selectedMessageCount < passport.messages.length) && <div className="transcript-option">
+            <strong>Need the complete captured conversation?</strong>
+            <p>Save its Markdown transcript, then attach the file on the destination website before you send. ChatPassport cannot verify or upload that attachment for you. The draft itself contains only the messages counted above.</p>
+            <button className="secondary" onClick={() => triggerDownload(passportToMarkdown(passport), safeFilename(passport.title, "md"), "text/markdown")}>Download complete transcript to attach</button>
+          </div>}
           {transferableSize > SESSION_WARN_BYTES && <p className="warning">Large transfer. Select fewer messages above or export a file.</p>}
           <button className="primary" onClick={prepareTransfer} disabled={busy || transferableSize > SESSION_MAX_BYTES || plan?.status !== "composed" || (plan.omittedMessageCount > 0 && !omissionsApproved)}>
             {busy ? "Opening…" : `Open editable draft in ${PROVIDER_LABELS[selectedTarget]}`}

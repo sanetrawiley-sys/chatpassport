@@ -46,7 +46,6 @@ export async function createPending(
 ): Promise<PendingTransfer> {
   const passport = passportSchema.parse(passportInput);
   const target = providerSchema.parse(targetInput);
-  if (passport.source.provider === target) throw new Error('Choose a different destination platform.');
   if (passportSize(passport) > SESSION_MAX_BYTES) throw new Error('This transfer exceeds the 9 MB limit.');
   if (currentRequestInput !== undefined && typeof currentRequestInput !== 'string') throw new Error('The next question is invalid.');
   const currentRequest = currentRequestInput;

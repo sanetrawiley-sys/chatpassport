@@ -333,7 +333,7 @@ async function finishComposerReplacement(
   elements.host.style.top = "20px";
   elements.heading.textContent = "Draft added · review and send";
   elements.detail.textContent = composed.omittedMessageCount > 0
-    ? `${composed.includedMessageCount} recent messages were added; ${composed.omittedMessageCount} older messages were omitted to stay within the safe size. Review the message, then click ${PROVIDER_LABELS[relay.target]}'s Send button.`
+    ? `${composed.includedMessageCount} selected messages were added; ${composed.omittedMessageCount} older selected messages were omitted to stay within the safe size. If you downloaded the complete transcript, attach it here yourself before sending. Review the message, then click ${PROVIDER_LABELS[relay.target]}'s Send button.`
     : `All ${composed.includedMessageCount} selected messages and your new request were added. This does not verify that the source history was complete. Review the message, then click ${PROVIDER_LABELS[relay.target]}'s Send button.`;
   elements.feedback.hidden = true;
   elements.continueButton.remove();
